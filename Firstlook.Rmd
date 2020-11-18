@@ -1,0 +1,244 @@
+---
+title: "FirstLook"
+author: "Braden Baker"
+date: "November 17, 2020"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Loading and Cleaning
+
+```{r}
+library(tidyverse)
+library(lubridate)
+library(chron)
+library(rebus)
+library(stringr)
+library(corrplot)
+library(ggpubr)
+
+#11:00 - 11:50 MWF // 16 students
+logs_CSC101A1_2020FALLMain_20201104_0826 <- read_csv("logs_CSC101A1-2020FALLMain_20201104-0826.csv")
+
+logs <- logs_CSC101A1_2020FALLMain_20201104_0826
+
+logs$Time <- as.POSIXct(logs$Time, format = "%m/%d/%Y, %H:%M")
+logs$roundedtime <- round_date(logs$Time,unit="hour")
+
+logs$month = as.numeric(format(logs$roundedtime, "%m"))
+logs$day = as.numeric(format(logs$roundedtime, "%d"))
+logs$year = as.numeric(format(logs$roundedtime, "%Y"))
+logs$roundedtime = format(logs$roundedtime, "%H:%M")
+
+logs$weekday <- wday(logs$Time, label=TRUE)
+logs$week <- epiweek(logs$Time) #new week starts sunday
+
+logs$userid <- str_extract(logs$Description, pattern = 
+             one_or_more("'") %R%
+             capture(one_or_more(DGT)) %R%
+              one_or_more("'")
+             )
+
+logs$userid <- gsub("'", "", logs$userid)
+
+
+head(logs)
+```
+
+## Overall Usage
+
+Class interaction stays fairly similar starting in the morning at 8AM until midnight with a large increase during class time.
+
+During the week, Monday and Wednesday classes seem to be popular with tuesday inbetween. After usage goes down and picks up again on Sunday before the start of the new week.
+```{r, fig.width = 12}
+
+ggplot(logs, aes(x=roundedtime, fill=Component)) + stat_count() + labs(x = "Rounded Time", y = "Moodle Interactions", title = "Interactions by Time of Day")
+ggplot(logs, aes(x=weekday, fill=Component)) + stat_count() + labs(x = "Week", y = "Moodle Interactions", title = "Interactions by Day of Week")
+  
+```
+##Course Views
+
+Course viewership has declined while the number of moduels created each week stayed between 5-8. Likely due to students feeling more comfortable with class structure as the school goes on and not needed to check Moodle as often.
+
+```{r, fig.width = 10}
+courseviews <- logs %>%
+  filter(Eventname == 'Course viewed' & week >34) %>%
+  unique() %>%
+  group_by(week) %>%
+  summarise(views = n())
+
+modulesadded <- logs %>%
+  filter(Eventname == 'Course module created'& week >34) %>%
+  group_by(week) %>%
+  summarise(modulescreated = n())
+
+x <- ggplot(courseviews, aes(x=week, y=views)) + geom_col()
+y <- ggplot(modulesadded, aes(x=week, y=modulescreated)) + geom_col()
+
+ggarrange(x, y, labels = c("Course Views", "Modules Created"))
+
+```
+
+##course module views
+
+Most of the modules posted have been URLs and assignments which is reflected with them having the most viewership.
+
+When discussion fourms have been posted they have recieved high viewership during the week.
+
+```{r, fig.width = 10}
+
+moduleviews <- logs %>%
+  filter(Eventname == 'Course module viewed' & week >34) %>%
+  group_by(week, Eventcontext) %>%
+  summarise(views = n())
+
+moduleviews$Eventcontext <- str_extract(moduleviews$Eventcontext, pattern = 
+              capture(one_or_more(WRD)) %R%
+              ":" 
+)
+
+moduleviews$Eventcontext <- gsub(":", "", moduleviews$Eventcontext)
+
+moduleviews <- moduleviews %>%
+  group_by(week, Eventcontext) %>%
+  summarise(views = sum(views))
+
+modulesaddedtype <- modulesadded <- logs %>%
+  filter(Eventname == 'Course module created'& week >34) %>%
+  group_by(week, Eventcontext) %>% 
+  summarise(added = n())
+
+modulesaddedtype$Eventcontext <- str_extract(modulesaddedtype$Eventcontext, pattern = 
+                                               capture(one_or_more(WRD)) %R%
+                                               ":" 
+)
+
+modulesaddedtype$Eventcontext <- gsub(":", "", modulesaddedtype$Eventcontext)
+
+modulesaddedtype <- modulesaddedtype %>%
+  filter(Eventcontext != 'Attendance') %>%
+  group_by(week, Eventcontext) %>%
+  summarise(added = sum(added))
+
+x2 <- ggplot(modulesaddedtype, aes(x = week, y = added, fill = Eventcontext)) + geom_col() + theme(legend.position = "none")
+
+y2 <- ggplot(moduleviews, aes(x = week, y = views, fill = Eventcontext)) + geom_col() + theme(legend.position="left")
+
+ggarrange(x2, y2, labels = c("Modules Added", "Modules viewed"),
+          common.legend = TRUE, legend = "right")
+
+
+```
+##Discussion Usage
+
+When posted, discussion forum modules have gotten high viewership and interaction by most of the students during the week they were posted. In the weeks after posting there has been no interaction but the forums have gotten some views.
+
+The forum subscription feature has not been used by students and the read tracking feature has been left on its default setting by almost all the students.
+```{r, fig.width = 10}
+
+discussionusage <- logs %>%
+  filter(Component == 'Forum' & !(Eventname %in% c('Subscribers viewed', 'Discussion created', 'Post created', 'Post updated', 
+                                                   'Course module instance list viewed'))) %>% #remove unimportant or redundent values
+  group_by(week, Eventname) %>%
+  summarise(usage = n()) %>%
+  arrange(week, usage) 
+
+#captures all new posts, discussions, and edits
+discussionusage$Eventname <- gsub("Some content has been posted.", "Forum Interaction", discussionusage$Eventname)
+discussionusage$Eventname <- gsub("Course module viewed", "Forum Post Hub Viewed", discussionusage$Eventname)
+
+forumadded <- modulesaddedtype %>%
+  filter(Eventcontext == 'Forum') %>%
+  select(week, added) %>%
+  rename(usage = added)
+
+forumadded$Eventname <- 'Forum Created'
+
+forumadded <- forumadded[c(1,3,2)]
+
+discussionusage <- rbind(discussionusage, forumadded)
+
+#change order of facet
+discussionusage$Eventname_f = factor(discussionusage$Eventname, levels=c('Forum Post Hub Viewed','Discussion viewed','Discussion subscription created',
+                                                                           'Forum Created', 'Forum Interaction', 'Read tracking disabled',
+                                                                            'Read tracking enabled'))
+
+ggplot(discussionusage, aes(x = as.factor(week), y = usage, color = Eventname, group = 1)) + geom_point() + geom_line() +  facet_wrap(~Eventname_f) + 
+  geom_text(aes(label = usage), vjust = -.40)  + labs(x = "Week", y = "Usage", title = "Usage of Forum Features by Week")
+  
+```
+
+
+##Feedback Usage
+
+Feedback is being viewed often and more than once by students.
+```{r}
+feedbackusage <- logs %>%
+  filter(Eventname == 'Feedback viewed') %>%
+  group_by(week) %>%
+  summarise(feedbackviewed = n())
+
+
+
+submissiongraded <- logs %>%
+  filter(Eventname == 'The submission has been graded.') %>%
+  group_by(week) %>%
+  summarise(Graded = n())
+
+
+feedbackwithsubs <- left_join(feedbackusage, submissiongraded, by = 'week')
+feedbackwithsubs[is.na(feedbackwithsubs)] <- 0
+
+feedbackwithsubslong <- gather(feedbackwithsubs, "Activity", "n", 2:3)
+
+ggplot(feedbackwithsubslong, aes(x=as.factor(week), y=n, fill=Activity)) + geom_col(position="dodge") + labs(x = "Week", y = "Count", title = "Assignment Feedback Views by Week")
+
+```
+##Grade Report Usage
+
+Grade report is being viewed by roughly half of the class during regular week. As expected, the grade report is viewed more often during midterm week 
+
+```{r}
+gradereport <- logs %>%
+  filter(Eventname == 'Grade user report viewed') %>%
+  group_by(week) %>%
+  summarise(Viewed = n()) 
+
+gradereport$midterm <- ifelse(gradereport$week == 43, 'Mid Term Week', 'Regular Week')
+
+ggplot(gradereport, aes(x = week, y = Viewed, fill = midterm)) + geom_col() + labs(x = "Week", y = "Viewed", title = "Usage of Grade Report by Week")
+
+```
+
+##Potential Relationships
+
+There is still quite a few redundant events in the corrplot but there does seem to be some potential relationships. Most notably a positive relationship between discussion interactivity and number of submisstions, a positive relationship between grade report viewership and number of submissions.
+
+There is also a negative relationship between feedback viewed and discussison interactivity and a negative relationship between feedback viewed and grade report viewership.
+
+I think it would be intereasting to see how these relationships are correlated with final grade and to see the effectiveness of other Moodle module types like glossaries and quiz/test feedback. 
+```{r, fig.width = 12}
+activity <- logs %>%
+  filter(userid != "0" & Eventname != "User graded" & userid != "6036" & userid != "2" & userid != "14564") %>%
+  group_by(userid, Eventname) %>%
+  summarise(suminteractions = n()) %>%
+  ungroup()
+
+dataforcorr <- spread(activity, Eventname, suminteractions)
+dataforcorr[is.na(dataforcorr)] <- 0
+dataforcorr2 <- dataforcorr %>%
+  select(-userid, -`Badge listing viewed`,
+         -`Read tracking disabled`,
+         -`Read tracking enabled`,
+         -`Remove submission confirmation viewed.`,
+         -`Step shown`,
+         -`Tour ended`,
+         -`Tour started`)
+
+cor1 <- cor(dataforcorr2)
+corrplot(cor1, method = "circle")
+
+```
