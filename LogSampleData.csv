@@ -1,0 +1,15 @@
+﻿Time,Eventcontext,Component,Eventname,Description
+11/4/2020 8:26,Course,Logs,Log report viewed,The user with id  6036  viewed the log report for the course with id  29026 .
+11/4/2020 8:25,Course,System,Course viewed,The user with id  6036  viewed the course with id  29026 .
+11/4/2020 8:14,Course,System,Course viewed,The user with id  17441  viewed the course with id  29026 .
+11/4/2020 8:14,Assignment: DC2,Assignment,The status of the submission has been viewed.,The user with id  17441  has viewed the submission status page for the assignment with course module id  588813 .
+11/4/2020 8:14,Assignment: DC2,Assignment,Course module viewed,The user with id  17441  viewed the  assign  activity with course module id  588813 .
+11/4/2020 8:14,Assignment: DC2,Assignment,A submission has been submitted.,The user with id  17441  has submitted the submission with id  606798  for the assignment with course module id  588813 .
+11/4/2020 8:14,Assignment: DC2,System,Course activity completion updated,The user with id  17441  updated the completion state for the course module with id  588813  for the user with id  17441 .
+11/4/2020 8:14,Assignment: DC2,File submissions,Submission created.,The user with id  17441  created a file submission and uploaded  1  files in the assignment with course module id  588813 .
+11/4/2020 8:14,Assignment: DC2,File submissions,A file has been uploaded.,The user with id  17441  has uploaded a file to the submission with id  606798  in the assignment activity with course module id  588813 .
+11/4/2020 8:14,Assignment: DC2,Assignment,Course module viewed,The user with id  17441  viewed the  assign  activity with course module id  588813 .
+11/4/2020 8:12,Assignment: DC2,Assignment,Submission form viewed.,The user with id  17441  viewed their submission for the assignment with course module id  588813 .
+11/4/2020 8:12,Assignment: DC2,Assignment,Course module viewed,The user with id  17441  viewed the  assign  activity with course module id  588813 .
+11/4/2020 8:11,Assignment: DC2,Assignment,The status of the submission has been viewed.,The user with id  17441  has viewed the submission status page for the assignment with course module id  588813 .
+11/4/2020 8:11,Assignment: DC2,Assignment,Course module viewed,The user with id  17441  viewed the  assign  activity with course module id  588813 .
