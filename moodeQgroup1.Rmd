@@ -1,0 +1,596 @@
+---
+title: "Moodle Group 1 Qs"
+author: "Braden Baker"
+date: "3/24/2021"
+output:
+  word_document: default
+  html_document: default
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
+library(tidyverse)
+library(lubridate)
+library(chron)
+library(rebus)
+library(stringr)
+library(corrplot)
+library(ggpubr)
+library(ggthemes)
+library(scales)
+library(plotly)
+library(ggrepel)
+library(readxl)
+
+#base classes
+com101 <- read_csv("logs_COM101.A1,COR220C.A1,GIS295.A1A1-2020FALLMain_20210226-0953.csv")  # 25 students T/TR 2:30 - 3:50
+psy101 <- read_csv("logs_COR220PW.B1,PSY101.B1B1-2020FALLMain_20210226-0959.csv")  # 25 students M/W  2:00 - 3:50
+eng101 <- read_csv("logs_ENG101Web-2020FALL01_20210225-1519.csv")                           # 2 students  online
+mth101 <- read_csv("logs_MTH101A1-2020FALLMain_20210226-1001.csv")                          # 24 students T/TR 2:30 - 3:50
+art157 <- read_csv("logs_ART157.WEB,COR240A.WEBWEB-2021SPR01_20210226-0951.csv")            # 22 students online
+
+#plugin classes
+ge206 <- read_excel("logs_GE 206A2-2021SPRMain_20210318-0944.xlsx") #7 students MWF 9:00 - 9:50
+ce435 <- read_csv("logs_CE 435.A2,MCE535.A2A2-2021SPRMain_20210318-0947.csv") # 8 students W 5:00 - 7:50
+
+cor120 <- read_csv("logs_COR120C2-2021SPRMain_20210318-0949.csv") #14 students T/TR 12:30 - 2:20
+eng210 <- read_csv("logs_COR210YW.A2,ENG210.B2A2-2021SPRMain_20210318-0951.csv") # 20 students MW 2:00 - 3:50
+
+ba420 <- read_csv("logs_BA 420A2-2021SPRMain_20210318-0959.csv") # 23 students arranged
+ba330 <- read_csv("logs_BA 330A2-2021SPRMain_20210318-0954.csv") # 25 students MWF 10:00 - 10:50
+ba431 <- read_csv("logs_BA 431A2-2021SPRMain_20210318-0957.csv") # 13 students MWF 2:00 - 2:50
+ba344 <- read_csv("logs_BA 344A2-2021SPRMain_20210318-0955.csv") # 17 students MWF 9:00 - 9:50
+
+clean <- function(dataframe) {
+  
+  #fix column names
+  dataframe <- dataframe %>%
+    rename(Eventcontext = `Event context`,
+           Eventname = `Event name`,
+             ) 
+  
+  #make time coloumn usable 
+  dataframe$Time <- as.POSIXct(dataframe$Time, format = "%m/%d/%Y, %H:%M")
+  dataframe$roundedtime <- round_date(dataframe$Time,unit="hour")
+  
+  dataframe$month = as.numeric(format(dataframe$roundedtime, "%m"))
+  dataframe$day = as.numeric(format(dataframe$roundedtime, "%d"))
+  dataframe$year = as.numeric(format(dataframe$roundedtime, "%Y"))
+  dataframe$roundedtime = format(dataframe$roundedtime, "%H:%M")
+  
+  dataframe$weekday <- wday(dataframe$Time, label=TRUE)
+  dataframe$week <- epiweek(dataframe$Time) #new week starts sunday
+  
+  #extract Moodle assigned userid to be an identifier 
+  dataframe$userid <- str_extract(dataframe$Description, pattern = 
+                                    one_or_more("'") %R%
+                                    capture(one_or_more(DGT)) %R%
+                                    one_or_more("'")
+  )
+  
+  dataframe$userid <- gsub("'", "", dataframe$userid)
+  
+  return(dataframe)
+}
+
+#clean classes
+
+com101 <- clean(com101)
+com101$classname <- "com101"
+com101$testgroup <- 0
+com101$numStudents <- 25
+com101$class <- "Class1"
+
+psy101 <- clean(psy101)
+psy101$classname <- "psy101"
+psy101$testgroup <- 0
+psy101$numStudents <- 25
+psy101$class <- "Class2"
+
+eng101 <- clean(eng101)
+eng101$classname <- "eng101"
+eng101$testgroup <- 0
+eng101$numStudents <- 2
+eng101$class <- "Class3"
+
+mth101 <- clean(mth101)
+mth101$classname <- "mth101"
+mth101$testgroup <- 0
+mth101$numStudents <- 24
+mth101$class <- "Class4"
+
+art157 <- clean(art157)
+art157$classname <- "art157"
+art157$testgroup <- 0
+art157$numStudents <- 22
+art157$class <- "Class5"
+
+#############
+ge206 <- clean(ge206)
+ge206$classname <- "ge206"
+ge206$testgroup <- 1
+ge206$numStudents <- 7
+ge206$class <- "Class6"
+
+ce435 <- clean(ce435)
+ce435$classname <- "ce435"
+ce435$testgroup <- 1
+ce435$numStudents <- 8
+ce435$class <- "Class7"
+#############
+cor120 <- clean(cor120)
+cor120$classname <- "cor120"
+cor120$testgroup <- 1
+cor120$numStudents <- 14
+cor120$class <- "Class8"
+
+eng210 <- clean(eng210)
+eng210$classname <- "eng210"
+eng210$testgroup <- 1
+eng210$numStudents <- 20
+eng210$class <- "Class9"
+
+#############
+ba420 <- clean(ba420)
+ba420$classname <- "ba420"
+ba420$testgroup <- 1
+ba420$numStudents <- 23
+ba420$class <- "Class10"
+
+ba330 <- clean(ba330)
+ba330$classname <- "ba330"
+ba330$testgroup <- 1
+ba330$numStudents <- 25
+ba330$class <- "Class11"
+
+ba431 <- clean(ba431)
+ba431$classname <- "ba431"
+ba431$testgroup <- 1
+ba431$numStudents <- 13
+ba431$class <- "Class12"
+
+ba344 <- clean(ba344)
+ba344$classname <- "ba344"
+ba344$testgroup <- 1
+ba344$numStudents <- 17
+ba344$class <- "Class13"
+
+alldata <- bind_rows(
+  com101,
+  psy101,
+  eng101,
+  mth101,
+  art157,
+  ge206,
+  ce435,
+  cor120,
+  eng210,
+  ba420,
+  ba330,
+  ba431,
+  ba344
+)
+
+```
+
+## Question 1: How Long Does it Take for Students to View Their Feedback
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
+
+#data setup function
+q1fun <- function(dataframe) {
+  
+  dataframe <- dataframe %>%
+    filter(Eventname %in% c("Feedback viewed", "The submission has been graded."))
+  
+  dataframe$tempassignmentid <- str_extract_all(dataframe$Description, pattern = 
+                                           one_or_more("'") %R%
+                                           capture(one_or_more(DGT)) %R%
+                                           one_or_more("'")
+  )
+  
+  dataframe$tempassignmentid <- sapply(dataframe$tempassignmentid, paste, collapse = ",")
+  dataframe$tempassignmentid <- str_replace_all(dataframe$tempassignmentid, "'", "")
+  dataframe <- separate(dataframe, tempassignmentid, into = c("c1", "c2", "c3", "c4"))
+  
+  dataframe <- dataframe %>%
+    mutate(
+      assignmentid = if_else(Eventname == "Feedback viewed", dataframe$c3, dataframe$c4),
+      usergraded = if_else(Eventname == "The submission has been graded.", dataframe$c3, "NA")
+    ) %>%
+    select(-c1, -c2, -c3, -c4) 
+  
+  dataframe11 <- dataframe %>%  
+    filter(Eventname == "The submission has been graded.") %>%
+    group_by(assignmentid, usergraded) %>% 
+    slice(which.min(Time)) #only the first time an instructor graded an assignment (removes changes)
+  
+  dataframe12 <- dataframe %>%
+    filter(Eventname == "Feedback viewed")
+  
+  dataframe <- rbind(dataframe11, dataframe12)
+  
+  #makes sure this joined correctly
+  #goal is to make sure the feedback viewed group of data has the grade grouped of data joined on the correct coloum 
+  #use time differene when for sure
+  dataframe <- left_join(dataframe11, dataframe12, by = c('assignmentid' = 'assignmentid','usergraded' = 'userid'))
+  
+  #select the first time a student viewed the assignment only
+  dataframe <- dataframe %>%
+    group_by(assignmentid, usergraded) %>% 
+    slice(which.min(Time.y)) 
+  
+  return(dataframe)
+}
+
+#runs on each dataframe to elimnate duplications errors from the left join
+q1<- q1fun(com101)
+q2<- q1fun(psy101)
+q3<- q1fun(eng101)
+q4<- q1fun(mth101)
+q5<- q1fun(art157)
+q6<- q1fun(ge206)
+q7<- q1fun(ce435)
+q8<- q1fun(cor120)
+q9<- q1fun(eng210)
+q10<- q1fun(ba420)
+q11<- q1fun(ba330)
+q12<- q1fun(ba431)
+q13<- q1fun(ba344)
+
+q1data <- bind_rows(q1,
+                    q2,
+                    q3,
+                    q4,
+                    q5,
+                    q6,
+                    q7,
+                    q8,
+                    q9,
+                    q10,
+                    q11,
+                    q12,
+                    q13
+)
+
+q1data <- na.omit(q1data)
+
+
+
+```
+
+Most students viewed their feedback within a couple days but every class had outliers where a student would not view their feedback for days. This data also does not include students that never checked their feedback.
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
+q1datac <- q1data %>%
+  mutate(timetoviewfb = difftime(Time.x, Time.y, units = "hours")) %>%
+  filter(timetoviewfb < 0) %>% #removes a few data anomalies
+  mutate(timetoviewfb = timetoviewfb * -1)
+
+#the purpose of this graph is to show how big the outliers are - I really dont need the box plot to show that
+ggplot(q1datac, aes(x=class.x, y=timetoviewfb)) + 
+#  geom_boxplot(alpha=0) + 
+  geom_jitter(alpha=0.3, width = 0.2, color = "#2438f0") +
+  scale_y_continuous(breaks = pretty_breaks(n = 8)) +
+  theme_clean() +
+  labs(x = "Class Name", 
+       y = "Number of Hours Before Feedback was Viewed", 
+       title = "Time Before Feedback was Viewed (Hours)")
+
+
+```
+
+
+Generally, 80% of the time it can be expected that a student will view their feedback within about 50 hours from the time their feedback was posted.
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
+
+q1quantile <- quantile(as.numeric(q1datac$timetoviewfb), .8)
+
+ggplot(q1datac, aes(x= timetoviewfb)) + 
+  geom_histogram(binwidth = 20, colour="white", fill="#c9401e") +
+  geom_vline(xintercept=q1quantile, color="blue", linetype="dashed", size=1) +
+  scale_x_continuous(breaks = pretty_breaks(n = 15)) +
+  theme_clean() +
+  geom_text(aes(x=q1quantile + 15, label="80% of Students", y=75), colour="blue", angle=90) + 
+  labs(x = "Time Before Feedback was Viewed (Hours)", 
+       y = "Count of Students", 
+       title = "Distribution of How Long it Takes for Students to View Feedback")
+
+
+```
+
+Looking at the median time to view feedback to lessen the impact of the outliers, the time to view feedback in most classes drops to under 20 hours.
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
+q1datasum <- q1data %>%
+  group_by(class.x) %>%
+  mutate(timetoviewfb = -1 * (difftime(Time.x, Time.y, units = "hours"))) %>%
+  summarise(med = median(timetoviewfb), avg = mean(timetoviewfb))
+
+
+ggplot(q1datasum, aes(x=class.x, y = med)) + 
+  geom_col(fill = "#2438f0") +
+  theme_clean() +
+  labs(x = "Class Name", 
+       y = "Median Time for Students to View Feedback (Hours)", 
+       title = "Median Time for Students to View Feedback")
+
+
+```
+
+## Question 2:  Which Moodle Resources get the Most and Least Number of Interactions
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
+
+# set up function
+q2fun <- function(dataframe) {
+  #gather views per type
+  numstudent <- dataframe$numStudents[1]
+  dataframe2 <- dataframe
+  
+  dataframe$Moduletype <- str_extract(dataframe$Eventcontext, pattern = 
+                                 capture(one_or_more(WRD)) %R%
+                                 ":" 
+  )
+  
+  dataframe$Moduletype <- gsub(":", "", dataframe$Moduletype)
+  
+  dataframe <- dataframe %>%
+    filter(Eventname == 'Course module viewed') %>%
+    group_by(Moduletype) %>%
+    summarise(TotalModuleviews = n())
+  
+  #gather posts per type
+  #course was restore so Course module created is not very helpful
+  #instead group by event context, get n (placeholder), then count module types
+  dataframe2 <- dataframe2 %>%
+    group_by(Eventcontext) %>%
+    summarise(count = n())
+  
+  dataframe2$Moduletype <- str_extract(dataframe2$Eventcontext, pattern = 
+                                  capture(one_or_more(WRD)) %R%
+                                  ":" 
+  )
+  
+  dataframe2$Moduletype <- gsub(":", "", dataframe2$Moduletype)
+  
+  dataframe2 <- dataframe2 %>%
+    group_by(Moduletype) %>%
+    summarise(ModulesAdded = n())
+  
+  ####
+  #join
+  
+  dataframe22 <- inner_join(dataframe, dataframe2, by = c("Moduletype" = "Moduletype")) %>%
+    mutate(viewsperadd = TotalModuleviews / ModulesAdded, viewsperstudent = viewsperadd / numstudent) %>% ##22 students 
+    arrange(desc(viewsperstudent))
+  
+  return(dataframe22)
+}
+
+q21<- q2fun(com101)
+q22<- q2fun(psy101)
+q23<- q2fun(eng101)
+q24<- q2fun(mth101)
+q25<- q2fun(art157)
+q26<- q2fun(ge206)
+q27<- q2fun(ce435)
+q28<- q2fun(cor120)
+q29<- q2fun(eng210)
+q210<- q2fun(ba420)
+q211<- q2fun(ba330)
+q212<- q2fun(ba431)
+q213<- q2fun(ba344)
+
+q2data <- bind_rows(q21,
+                    q22,
+                    q23,
+                    q24,
+                    q25,
+                    q26,
+                    q27,
+                    q28,
+                    q29,
+                    q210,
+                    q211,
+                    q212,
+                    q213
+)
+
+q2data <- q2data %>%
+  mutate(Moduletype = str_replace(Moduletype, "tool", "External Tool")) %>%
+  filter(!is.na(Moduletype))
+
+
+```
+
+
+An assignment module received the most views as expected. The next highest view was files which also had the highest number of modules added so its high view count is expected.
+
+The viewership of URL is surprising since it had a large number of modules added. The other module types having low viewership is expected given their lower number of modules to viewed.
+
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
+
+q2datasumtotals <- q2data %>%
+  group_by(Moduletype) %>%
+  summarise(
+    TotalModuleviews = sum(TotalModuleviews),
+    TotalModulesAdded = sum(ModulesAdded)
+  ) %>%
+  mutate(ViewsPerModule = TotalModuleviews / TotalModulesAdded)
+
+
+
+ggplot(q2datasumtotals, aes(x=Moduletype, y=TotalModuleviews, fill=TotalModulesAdded)) +
+  geom_col(position = "dodge") +
+  theme_clean() +
+  labs(x = "Module Type", 
+       y = "Views",
+       title = "How Much Each Moodle Resource is Interacted",
+       subtitle = "Total Views for each Module Type") +
+  geom_text(aes(label = TotalModuleviews), vjust = -0.8) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 10)) 
+
+q2datasumtotals
+
+
+# ggplot(q2datalong, aes(x=Moduletype, y=Value, fill=Measure)) +
+#   geom_col(position = "dodge") +
+#   theme_clean() +
+#   labs(x = "Module Type", 
+#        y = "Count",
+#        title = "How Much Each Moodle Resource is Interacted",
+#        subtitle = "Averages of Course Totals")
+
+```
+
+When looking at views per module, glossary is clearly at the top. Only one glossary modules was posted in the sample of logs but 450 views is very high and suggests it was used by students frequently. The choice model was similar, it was only used in one course by received quite a view views.
+
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
+ggplot(q2datasumtotals, aes(x=Moduletype, y=ViewsPerModule, fill=TotalModulesAdded)) +
+  geom_col(position = "dodge") +
+  theme_clean() +
+  labs(x = "Module Type", 
+       y = "Views",
+       title = "How Much Each Moodle Resource is Interacted",
+       subtitle = "Views Per Module Added for each Module Type") +
+  geom_text(aes(label = round(ViewsPerModule)), vjust = -0.8) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 10)) 
+
+
+
+
+```
+Students viewed most non assignment modules 1-2 times with the exception of choices, folders, and quizzes. 
+
+How to read, assignment received an average of 103 views per module added, each student viewed an assignment module on average 7 times, and each class had an average of 10 assignment modules added
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
+
+q2datasum <- q2data %>%
+  group_by(Moduletype) %>%
+  summarise(
+    AVGTotalModuleviews = mean(TotalModuleviews),
+    AVGModulesAdded = mean(ModulesAdded),
+    AVGViewsPerModule = mean(viewsperadd),
+    AVGModuleViewsPerStudent = mean(viewsperstudent)
+  )
+
+q2datalong <- q2datasum %>%
+  pivot_longer(
+    cols = c(AVGTotalModuleviews, AVGModulesAdded, AVGViewsPerModule, AVGModuleViewsPerStudent),
+    names_to = "Measure",
+    values_to = "Value"
+  )
+
+q2datalongnoviews <- q2datasum %>%
+  pivot_longer(
+    cols = c(AVGTotalModuleviews, AVGModulesAdded, AVGViewsPerModule, AVGModuleViewsPerStudent),
+    names_to = "Measure",
+    values_to = "Value"
+  ) %>%
+  filter(Measure != "AVGTotalModuleviews" & Moduletype != "Glossary")
+
+
+ggplot(q2datalongnoviews, aes(x=Moduletype, y=Value, fill=Measure)) + 
+  geom_col() +
+  theme_clean() +
+  labs(x = "Module Type", 
+       y = "Count", 
+       title = "How Much Each Moodle Resource is Interacted",
+       subtitle = "Views and Glossary Removed") +
+  geom_text(aes(label = round(Value, 1)), size = 3,  position = position_stack(vjust = .5)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 10)) 
+
+q2datasum
+
+```
+
+## How Often are Students Viewing Recorded Lectures?
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
+
+#clean data
+q31 <- mth101 %>%
+  filter(str_detect(Eventcontext, "URL: Lecture Video") & Eventname == 'Course module viewed') %>%
+  group_by(Eventcontext) %>%
+  summarise(Views = n()) %>%
+  mutate(Eventcontext = str_replace(Eventcontext, "URL: Lecture Video for ", ""),
+         Eventcontext = str_replace(Eventcontext, "URL: Lecture Video For ", ""),
+         Date = as.Date(Eventcontext, "%a, %B %d, %y")) %>%
+  arrange(Date) %>%
+  mutate(Date = factor(Date, labels=format(Date,"%m-%d"), ordered=TRUE)) 
+
+```
+
+Only one class in the sample of logs posted recorded lectures consistently so this is a small sample size. Viewership mostly has stayed the same throughout semester, between 3-9 views per student
+
+```{r }
+
+ggplot(q31, aes(x=Date, y=Views)) + 
+  geom_col(fill = "#2438f0") +
+  theme_clean() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 10)) +
+  labs(Title = "Distrubtion of views For Each Recorded Lecture",
+       X = "Date Recording Posted",
+       y = "Number of Views")
+
+```
+
+Most students viewed a recorded lecture within 5 days of a recording being posted. However another decently sized group viewed the recording lecture 13+ days after posting.
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
+#how many days after post do students watch
+
+q321 <- mth101 %>%
+  filter(str_detect(Eventcontext, "URL: Lecture Video") & Eventname == 'Course module created')
+
+q322 <- mth101 %>%
+  filter(str_detect(Eventcontext, "URL: Lecture Video") & Eventname == 'Course module viewed')
+
+q32 <- inner_join(q322, q321, by = c("Eventcontext" = "Eventcontext"))
+
+q32 <- q32 %>%
+  mutate(timetoview = difftime(Time.x, Time.y, units = "days")) 
+
+q3quantile <- quantile(as.numeric(q32$timetoview), .8)
+
+ggplot(q32, aes(x=timetoview)) + 
+  geom_histogram(binwidth = 1, colour="white", fill = "#c9401e") +
+  geom_vline(xintercept=q3quantile, color="blue", linetype="dashed", size=1) +
+  scale_x_continuous(breaks = pretty_breaks(n = 16)) +
+  theme_clean() +
+  geom_text(aes(x=q3quantile + 0.5, label="80% of Students", y=30), colour="blue", angle=90) + 
+  labs(x = "Time Between Lecture Recording Post and View (Days)", 
+       y = "Count of Students", 
+       title = "Distribution of When Students View Lecture Recordings")
+```
+
+
+Examining further, it does seem that their may be two groups of views for recording lectures. One group views a few days after a recording is posted likely for homework, missing the class, or just going over it again. A second group viewes the recorded lecture days after it was posted likely for test preperation. This trend is strongest in November. Most November lectures received more views than other months later than the normal 5 days suggesting that the views may have been for prepared for end of semester exams or finals.
+
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
+q32 <- q32 %>%
+  mutate(Eventcontext = str_replace(Eventcontext, "URL: Lecture Video for ", ""),
+         Eventcontext = str_replace(Eventcontext, "URL: Lecture Video For ", ""),
+         Date = as.Date(Eventcontext, "%a, %B %d, %y"))
+
+ggplot(q32, aes(x=reorder(Eventcontext, Time.y), y =timetoview)) + 
+  coord_flip() + 
+  geom_jitter(width = 0.1, color = "#c9401e", size = 2, alpha = 0.75) +
+  theme_minimal() +
+  labs(x = "Lecture Recording", 
+       y = "Time Between Lecture Recording Post and View (Days)", 
+       title = "When Students View Lecture Recordings")
+
+```
+
+
+

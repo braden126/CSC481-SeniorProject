@@ -7,6 +7,7 @@ library(corrplot)
 library(ggpubr)
 library(ggthemes)
 library(scales)
+library(plotly)
 
 temp <- ba431 %>%
   group(Eventcontext) %>%
@@ -63,72 +64,81 @@ com101 <- clean(com101)
 com101$classname <- "com101"
 com101$testgroup <- 0
 com101$numStudents <- 25
-
+com101$class <- "Class1"
 
 psy101 <- clean(psy101)
 psy101$classname <- "psy101"
 psy101$testgroup <- 0
 psy101$numStudents <- 25
-
+psy101$class <- "Class2"
 
 eng101 <- clean(eng101)
 eng101$classname <- "eng101"
 eng101$testgroup <- 0
 eng101$numStudents <- 2
-
+eng101$class <- "Class3"
 
 mth101 <- clean(mth101)
 mth101$classname <- "mth101"
 mth101$testgroup <- 0
 mth101$numStudents <- 24
-
+mth101$class <- "Class4"
 
 art157 <- clean(art157)
 art157$classname <- "art157"
-
 art157$testgroup <- 0
 art157$numStudents <- 22
+art157$class <- "Class5"
+
 #############
 ge206 <- clean(ge206)
 ge206$classname <- "ge206"
 ge206$testgroup <- 1
 ge206$numStudents <- 7
+ge206$class <- "Class6"
 
 ce435 <- clean(ce435)
 ce435$classname <- "ce435"
 ce435$testgroup <- 1
 ce435$numStudents <- 8
+ce435$class <- "Class7"
 #############
 cor120 <- clean(cor120)
 cor120$classname <- "cor120"
 cor120$testgroup <- 1
 cor120$numStudents <- 14
+cor120$class <- "Class8"
 
 eng210 <- clean(eng210)
 eng210$classname <- "eng210"
 eng210$testgroup <- 1
 eng210$numStudents <- 20
+eng210$class <- "Class9"
 
 #############
 ba420 <- clean(ba420)
 ba420$classname <- "ba420"
 ba420$testgroup <- 1
 ba420$numStudents <- 23
+ba420$class <- "Class10"
 
 ba330 <- clean(ba330)
 ba330$classname <- "ba330"
 ba330$testgroup <- 1
 ba330$numStudents <- 25
+ba330$class <- "Class11"
 
 ba431 <- clean(ba431)
 ba431$classname <- "ba431"
 ba431$testgroup <- 1
 ba431$numStudents <- 13
+ba431$class <- "Class12"
 
 ba344 <- clean(ba344)
 ba344$classname <- "ba344"
 ba344$testgroup <- 1
 ba344$numStudents <- 17
+ba344$class <- "Class12"
 
 alldata <- bind_rows(
   com101,
@@ -256,7 +266,7 @@ ggplot(activityheatmap, aes(roundedtime, weekday)) + geom_tile(aes(fill = count)
   guides(fill=guide_legend(title="Total Interactions")) +
   theme_bw() + theme_minimal() + 
   labs(title = "Moodle Interactions by Day of Week and Hour", x = "Interactions Per Hour", y = "Day of Week") +
-  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.text.y = element_text(face="bold"), axis.text.x = element_text(face="bold")) 
 
 
 ###########################
@@ -406,7 +416,7 @@ temp <- q1 %>%
 
 q1datasum <- q1data %>%
   group_by(classname.x) %>%
-  mutate(timetoviewfb = difftime(Time.x, Time.y, units = "days")) %>%
+  mutate(timetoviewfb = -1 * (difftime(Time.x, Time.y, units = "hours"))) %>%
   summarise(med = median(timetoviewfb), avg = mean(timetoviewfb))
 
 q1datac <- q1data %>%
@@ -414,7 +424,15 @@ q1datac <- q1data %>%
   filter(timetoviewfb < 0) %>% #removes a few data anomalies
   mutate(timetoviewfb = timetoviewfb * -1)
 
-ggplot(q1datac, aes(x=classname.x, y=timetoviewfb)) + geom_boxplot(alpha=0) + geom_jitter(alpha=0.3)
+#the purpose of this graph is to show how big the outliers are - I really dont need the box plot to show that
+ggplot(q1datac, aes(x=classname.x, y=timetoviewfb)) + 
+#  geom_boxplot(alpha=0) + 
+  geom_jitter(alpha=0.3, width = 0.2) +
+  scale_y_continuous(breaks = pretty_breaks(n = 8)) +
+  theme_clean() +
+  labs(x = "Class Name", 
+       y = "Number of Hours Before Feedback was Viewed", 
+       title = "Time Before Feedback was Viewed (Hours)")
 
 q1quantile <- quantile(as.numeric(q1datac$timetoviewfb), .8)
 
@@ -424,9 +442,16 @@ ggplot(q1datac, aes(x= timetoviewfb)) +
   scale_x_continuous(breaks = pretty_breaks(n = 15)) +
   theme_clean() +
   geom_text(aes(x=q1quantile + 15, label="80% of Students", y=75), colour="blue", angle=90) + 
-  labs(x = "Time Before Feedback was Viewed (Hours)", y = "Count of Students", title = "Distribution of How Long it Takes for Students to View Feedback")
+  labs(x = "Time Before Feedback was Viewed (Hours)", 
+       y = "Count of Students", 
+       title = "Distribution of How Long it Takes for Students to View Feedback")
 
-ggplot(q1datasum, aes(x=classname.x, y = med)) + geom_col()
+ggplot(q1datasum, aes(x=classname.x, y = med)) + 
+  geom_col(fill = "#429ef5") +
+  theme_clean() +
+  labs(x = "Class Name", 
+       y = "Median Time (Hours)", 
+       title = "Median Time for Student to View Feedback")
 
 summary(as.numeric(q1datac$timetoviewfb))
 
@@ -579,7 +604,27 @@ q2datalong <- q2data %>%
     values_to = "Value"
   )
 
-ggplot(q2datalong, aes(x=Moduletype, y=Value, fill=Measure)) + geom_col() +facet_wrap(~Measure)
+q2datalongnoviews <- q2data %>%
+  pivot_longer(
+    cols = c(TotalModuleviews, ModulesAdded, viewsperadd, viewsperstudent),
+    names_to = "Measure",
+    values_to = "Value"
+  ) %>%
+  filter(Measure != "TotalModuleviews")
+
+ggplot(q2datalong, aes(x=Moduletype, y=Value, fill=Measure)) + geom_col() +
+  facet_grid(Measure~., scales = "free", space = "free")
+#  facet_wrap(~)
+
+#put these 2 next to each other
+ggplotly(
+  ggplot(q2datalong, aes(x=Moduletype, y=Value, fill=Measure)) + geom_col(position = "dodge")
+)
+
+ggplotly(
+  ggplot(q2datalongnoviews, aes(x=Moduletype, y=Value, fill=Measure)) + geom_col(position = "dodge")
+)
+
 
 ggplot(q2data, aes(x=Moduletype, y = TotalModuleviews)) + geom_col()
 
@@ -594,17 +639,51 @@ q31 <- mth101 %>%
   filter(str_detect(Eventcontext, "URL: Lecture Video") & Eventname == 'Course module viewed') %>%
   group_by(Eventcontext) %>%
   summarise(Views = n()) %>%
-  mutate(views)
+  mutate(Eventcontext = str_replace(Eventcontext, "URL: Lecture Video for ", ""),
+         Eventcontext = str_replace(Eventcontext, "URL: Lecture Video For ", ""),
+         Date = as.Date(Eventcontext, "%a, %B %d, %y")) %>%
+  arrange(Date) %>%
+  mutate(Date = factor(Date, labels=format(Date,"%m-%d"), ordered=TRUE)) 
 
-ce435 
-cor120
+ggplot(q31, aes(x=Date, y=Views)) + 
+  geom_col() +
+  theme_clean() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 10))
 
-temp <- alldata %>%
-  filter(Eventname == 'Course module viewed')
+###how many days after post do students watch
 
-temp <- cor120 %>%
-  group_by(Eventcontext) %>%
-  summarise(count = n())
+q321 <- mth101 %>%
+  filter(str_detect(Eventcontext, "URL: Lecture Video") & Eventname == 'Course module created')
+
+q322 <- mth101 %>%
+  filter(str_detect(Eventcontext, "URL: Lecture Video") & Eventname == 'Course module viewed')
+
+q32 <- inner_join(q322, q321, by = c("Eventcontext" = "Eventcontext"))
+
+q32 <- q32 %>%
+  mutate(timetoview = difftime(Time.x, Time.y, units = "days")) 
+
+q3quantile <- quantile(as.numeric(q32$timetoview), .8)
+
+ggplot(q32, aes(x=timetoview)) + 
+  geom_histogram(binwidth = 1, colour="white") +
+  geom_vline(xintercept=q3quantile, color="blue", linetype="dashed", size=1) +
+  scale_x_continuous(breaks = pretty_breaks(n = 16)) +
+  theme_clean() +
+  geom_text(aes(x=q3quantile + 0.5, label="80% of Students", y=30), colour="blue", angle=90) + 
+  labs(x = "Time Between Lecture Recording Post and View (Days)", 
+       y = "Count of Students", 
+       title = "Distribution of When Students View Lecture Recordings")
+
+#towards the end people viewed the Nov lectures more, like before finals ish
+#people reviewed the recently posted lecture before finals but didnt do that with the september/october lectures
+ggplot(q32, aes(x=reorder(Eventcontext, Time.y), y =timetoview)) + 
+  coord_flip() + 
+  geom_jitter(width = 0.1) +
+  theme_minimal() +
+  labs(x = "Lecture Recording", 
+       y = "Time Between Lecture Recording Post and View (Days)", 
+       title = "When Students View Lecture Recordings")
 
 #####################
 #perusall
@@ -641,8 +720,19 @@ p2 <- eng210 %>%
   group_by(Eventcontext) %>%
   summarise(count = n())
 
+ggplot(p1, aes(x=week, y=count)) + geom_col()
 
+temp <- cor120 %>%
+  filter(Eventname == 'Course module created')
 
+temp <- cor120 %>%
+  filter(str_detect(cor120$Eventcontext, 'External tool: Zimbardo')) %>%
+  group_by(Eventcontext) %>%
+  slice(which.min(Time))
+
+temp <- cor120 %>%
+  filter(str_detect(cor120$Eventcontext, 'External tool'))
+           
 #####################
 # Checklist
 #####################
@@ -729,26 +819,46 @@ ggplot(checklistdate, aes(x=Time, y=count)) +
 
 #last checklist was posted week 9 which explains drop at the end -- students actually went back and checked off old check lists last 2 weeks
 ggplot(checklist, aes(x=week, y = count, color = Eventname)) + 
-  geom_line()
+  geom_line(size = 2) +
+  labs(x = "Week",
+       y = "Number of Occurances",
+       title ="Class 1 Checklist Activity") + 
+  theme_minimal()
+
 #high usage throughout
 ggplot(checklist2, aes(x=week, y = count, color = Eventname)) + 
-  geom_line() 
+  geom_line(size = 2)  +
+  labs(x = "Week",
+       y = "Number of Occurances",
+       title ="Class 2 Checklist Activity") + 
+  theme_minimal()
     
 #over half used a lot, most used a little at least -- instructor has 2 dots
 ggplot(checklist3, aes(x=reorder(userid, count), y = count)) + 
   geom_point(color = "red", size = 4) + 
   coord_flip() + 
+  scale_y_continuous(breaks = pretty_breaks(n = 8)) +
   theme_minimal() +
-  labs(x="Student", y = "Count", title = "Number of Checklist Views + Checks Made by Each Student")
+  labs(x="Student",
+       y = "Total Views + Checks",
+       title = "Number of Checklist Views + Checks Made by Each Student")
 
 intersect(cor120$userid, eng210$userid)
 
 #activity did trend down but not by a lot
-ggplot(checklist4, aes(x=week, y=count)) + geom_jitter(width = 0.1, alpha=0.5) + geom_smooth(se = FALSE, method = lm) + 
-  stat_cor(label.y = 35) 
+ggplot(checklist4, aes(x=week, y=count)) + 
+  geom_jitter(width = 0.1, alpha=0.5, color = "red", size = 2) + 
+  geom_smooth(se = FALSE, method = lm) + 
+  theme_clean() +
+  labs(x="Week",
+       y = "Count",
+       title = "Number of Checklist Views + Checks Made by Each Student Weekly")
 
-ggplot(checklist4, aes(x=week, y=count)) + geom_line() + geom_smooth(se = FALSE, method = lm) + 
-  stat_cor(label.y = 35) +facet_wrap(~userid) 
+ggplot(checklist4, aes(x=week, y=count)) + 
+  geom_line(size = 2) + 
+  geom_smooth(se = FALSE, method = lm) + 
+  stat_cor(label.y = 35) +
+  facet_wrap(~userid) 
 
 slope(checklist4$week, checklist4$count)
 
