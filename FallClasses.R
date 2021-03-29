@@ -138,7 +138,7 @@ ba344 <- clean(ba344)
 ba344$classname <- "ba344"
 ba344$testgroup <- 1
 ba344$numStudents <- 17
-ba344$class <- "Class12"
+ba344$class <- "Class13"
 
 alldata <- bind_rows(
   com101,
@@ -241,17 +241,17 @@ activityheatmap <- bind_rows(  com101,
                                ba344)
 
 ##most class start at 9:00 or 2:00 so data is quite skewed can be used individually tho with a facet grid, 2 rows
-activityheatmap <- activityheatmap %>%
+activityheatmap <- alldata %>%
   filter(Eventname == "Course viewed") %>%
   group_by(weekday, roundedtime) %>%
   summarise(count = n())
 
-activityheatmap <- activityheatmap %>%
+activityheatmap <- alldata %>%
   filter(Eventname == "A submission has been submitted.") %>%
   group_by(weekday, roundedtime) %>%
   summarise(count = n())
 
-activityheatmap <- activityheatmap %>%
+activityheatmap <- alldata %>%
   filter(Eventname %in% c("Course module viewed", "Quiz attempt started", "A submission has been submitted.")) %>%
   group_by(weekday, roundedtime) %>%
   summarise(count = n())
@@ -692,46 +692,85 @@ ggplot(q32, aes(x=reorder(Eventcontext, Time.y), y =timetoview)) +
 #use q2 table format, views per module, views per student etc
 #also use check list format
 
-p <- cor120 %>%
-  filter(Component == 'External tool' & Eventname != "Course module instance list viewed") %>%
-  group_by(Eventcontext, Eventname) %>%
-  summarise(count = n())
-
-p <- eng210 %>%
-  filter(Component == 'External tool' & Eventname == 'Course module viewed') %>%
-  group_by(Eventcontext) %>%
-  summarise(count = n())
-
-
-preadingsposted <- cor120 %>%
-  filter(Component == 'External tool' & Eventname != "Course module instance list viewed") %>%
-  group_by(Eventcontext, Eventname) %>%
-  summarise(count = n()) 
-
-preadingsposted <- nrow(preadingsposted)
-
 p1 <- cor120 %>%
-  filter(Component == 'External tool' & Eventname == 'Course module viewed') %>%
-  group_by(week, Eventcontext) %>%
-  summarise(count = n())
+  filter(Component == 'External tool' & Eventname == 'Course module viewed' & Eventcontext != "Other") %>%
+  mutate(Eventcontext = str_replace(Eventcontext, "External tool: Perusall", 
+                                    "External tool: Perusall a"))
 
 p2 <- eng210 %>%
-  filter(Component == 'External tool' & Eventname == 'Course module viewed') %>%
-  group_by(Eventcontext) %>%
+  filter(Component == 'External tool' & Eventname == 'Course module viewed' & Eventcontext != "Other") %>%
+  mutate(Eventcontext = str_replace(Eventcontext, "External tool: Perusall", 
+                                    "External tool: Perusall b"))
+
+
+# one common name, assigning them to a and b
+intersect(p$Eventcontext, p2$Eventcontext)
+
+p <- bind_rows(p, p2)
+
+
+preadingsposted <- p %>%
+  filter(Component == 'External tool' & Eventname != "Course module instance list viewed") %>%
+  group_by(class, Eventcontext, Eventname) %>%
+  summarise(count = n()) 
+
+preadingsposted <- as.numeric(nrow(preadingsposted))
+
+
+#people viewed many different modules each week - very spread out
+p3 <-  p %>% 
+  group_by(class, week, Eventcontext) %>%
   summarise(count = n())
 
-ggplot(p1, aes(x=week, y=count)) + geom_col()
+ggplot(p3, aes(x = week, y = count, fill = Eventcontext)) + geom_col() + facet_wrap(~class)
+ggplot(p3, aes(x = week, y = count, fill = class)) + geom_col() + facet_wrap(~class)
+
+## weekly views per student
+
+p6 <- p %>%
+  group_by(class, numStudents, week) %>%
+  summarise(count = n()) %>%
+  mutate(viewsperstudent = count / numStudents)
+
+ggplot(p6, aes(x = week, y = viewsperstudent, fill = class)) + geom_col() + facet_wrap(~class)
+
+## views per student for each module
+p4 <- p %>% 
+  group_by(class, numStudents, Eventcontext) %>%
+  summarise(count = n()) %>%
+  mutate(Viewsperstudent = count / numStudents)
+
+ggplot(p4, aes(x = reorder(Eventcontext, Viewsperstudent), y = Viewsperstudent, fill = class)) + geom_col() + coord_flip()
+  
+## average time a student viewed each module
+#how to read: each student on average viewed pursal b 17 times
+p5 <- p %>%   
+  group_by(class, userid, Eventcontext) %>%
+  summarise(count = n()) %>%
+  ungroup() %>%
+  group_by(class, Eventcontext) %>%
+  summarise(AVGStudentVisits = mean(count))
+
+ggplot(p5, aes(x = reorder(Eventcontext, AVGStudentVisits), y = AVGStudentVisits, fill = class)) + geom_col() + coord_flip()
+
+
+
+
+
+##find when each module was assigned by first time it was viewed
 
 temp <- cor120 %>%
-  filter(Eventname == 'Course module created')
-
-temp <- cor120 %>%
-  filter(str_detect(cor120$Eventcontext, 'External tool: Zimbardo')) %>%
+  filter(str_detect(cor120$Eventcontext, 'External tool') & Eventname == 'Course module viewed') %>%
   group_by(Eventcontext) %>%
-  slice(which.min(Time))
+  slice(which.min(Time)) %>%
+  group_by(week) %>%
+  summarise(count = n())
 
-temp <- cor120 %>%
-  filter(str_detect(cor120$Eventcontext, 'External tool'))
+ggplot(temp, aes(x = as.factor(week), y = count)) + geom_point()
+
+
+
+##try taking the most common view week and make that the week it was supposed to be done
            
 #####################
 # Checklist
@@ -848,12 +887,13 @@ intersect(cor120$userid, eng210$userid)
 #activity did trend down but not by a lot
 ggplot(checklist4, aes(x=week, y=count)) + 
   geom_jitter(width = 0.1, alpha=0.5, color = "red", size = 2) + 
-  geom_smooth(se = FALSE, method = lm) + 
+  geom_smooth(se = FALSE, method = "loess") + 
   theme_clean() +
   labs(x="Week",
        y = "Count",
        title = "Number of Checklist Views + Checks Made by Each Student Weekly")
 
+#blank graphs only used the checklist once
 ggplot(checklist4, aes(x=week, y=count)) + 
   geom_line(size = 2) + 
   geom_smooth(se = FALSE, method = lm) + 
@@ -863,3 +903,90 @@ ggplot(checklist4, aes(x=week, y=count)) +
 slope(checklist4$week, checklist4$count)
 
 
+##################
+### fourms
+##################
+
+fourms1 <- alldata %>%
+  filter(Component == 'Forum' & !(Eventname %in% c('Subscribers viewed', 'Discussion created', 'Post created', 'Post updated', 
+                                                   'Course module instance list viewed'))) %>% #remove unimportant or redundant values
+  
+fourms1 <- alldata %>%
+  filter(Component == 'Forum' & Eventname %in% c('Some content has been posted.', 'Subscription created', 'Post created', 'Post updated', 
+                                                   'Discussion viewed', 'Course module viewed')) %>% #remove unimportant or redundant values
+  group_by(class, week, Eventname) %>%
+  summarise(usage = n()) %>%
+  arrange(week, usage) 
+
+#captures all new posts, discussions, and edits
+fourms1$Eventname <- gsub("Some content has been posted.", "Forum Interaction", fourms1$Eventname)
+fourms1$Eventname <- gsub("Course module viewed", "Forum Post Hub Viewed", fourms1$Eventname)
+
+forums1added <- alldata %>%
+  filter(Eventname == 'Course module created' & str_detect(Eventcontext,"Forum")) %>%
+  select(class, week, Eventname) %>%
+  mutate(usage = 1)
+
+forums1added$Eventname <- 'Forum Created'
+
+forumadded <- forumadded[c(1,3,2)]
+
+fourms1all <- rbind(forums1added, fourms1)
+
+#change order of facet
+fourms1$Eventname_f = factor(fourms1$Eventname, levels=c('Forum Post Hub Viewed','Discussion viewed','Discussion subscription created',
+                                                                         'Forum Created', 'Forum Interaction', 'Read tracking disabled',
+                                                                         'Read tracking enabled'))
+
+ggplot(fourms1all, aes(x = as.factor(week), y = usage, color = Eventname, group = 1)) + geom_point() + geom_line() +  facet_grid(Eventname~class) + 
+  geom_text(aes(label = usage), vjust = -.40)  + labs(x = "Week", y = "Usage", title = "Usage of Forum Features by Week")
+
+fourms1trimmed <- fourms1all %>%
+  filter(class %in% c('Class1', "Class10", "Class3", "Class4", "Class5", "Class8"))
+
+ggplot(fourms1trimmed, aes(x = as.factor(week), y = usage, color = Eventname, group = 1)) + geom_point() + geom_line() +  facet_grid(Eventname~class) + 
+  geom_text(aes(label = usage), vjust = -.40)  + labs(x = "Week", y = "Usage", title = "Usage of Forum Features by Week")
+
+#######################
+### overall usage fall/spring comparison
+#######################
+
+compare <- alldata %>%
+  filter(Eventname == "Course viewed") %>%
+  group_by(testgroup, class, numStudents) %>%
+  summarise(count = n()) %>%
+  mutate(countstudentratio = count / numStudents) 
+
+comparedatatable <- compare %>% 
+  ungroup() %>%
+  group_by(testgroup) %>%
+  summarise(median = median(countstudentratio), avg = mean(countstudentratio))
+
+ggplot(compare, aes(x=reorder(class, countstudentratio), y = countstudentratio, fill = as.factor(testgroup))) + 
+  geom_col() +
+  labs(x = "Class", 
+       y = "Course Views Per Student", 
+       title = "Course Views Per Student For Each Class") +
+  theme_clean() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 10)) +
+  geom_text(aes(label = round(countstudentratio, 1)), vjust = -0.75, size = 3)
+
+
+
+  
+## facet of sutdent behavioir = do week and weekday
+studentfacet <- alldata %>%
+  filter(Eventname == "Course viewed") %>%
+  group_by(testgroup, userid, week) %>%
+  summarise(count = n())
+
+# 15 random from test group 15 random from regular
+
+ggplot(studentfacet, aes(x = week, y = count)) + 
+  geom_line(size = 1.5) +   
+  geom_smooth(se = FALSE, method = lm) + 
+  stat_cor(label.y = 35) + 
+  facet_wrap(testgroup~userid)
+
+mod1 <- lm(testgroup ~ Eventcontext, data = alldata)
+summary(mod1)

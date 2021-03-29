@@ -279,6 +279,8 @@ ggplot(q1datac, aes(x=class.x, y=timetoviewfb)) +
   labs(x = "Class Name", 
        y = "Number of Hours Between Feedback Posted and Viewed", 
        title = "How Long it Takes for Students to View Feedback")
+
+
 ```
 
 
@@ -301,7 +303,7 @@ ggplot(q1datac, aes(x= timetoviewfb)) +
 
 ```
 
-When including all classes, the median time to view feedback was 17.6 hours and the mean was 51.1 hours. Here it is best to focus on the median time to view feedback to lessen the impact of the outliers.
+When including all classes, the median time to view feedback was 17.6 hours and the mean was 521.1 hours. Here it is best to focus on the median time to view feedback to lessen the impact of the outliers.
 
 For most classes the median time to view feedback was at or under 20 hours. Many of the classes with the largest sample sizes are in the under 20 hour group suggesting that the median is a much better representation of how long it takes for students to view feedback than the mean.
 
@@ -476,7 +478,7 @@ ggplot(q2datasumtotals, aes(x=Moduletype, y=ViewsPerModule, fill=TotalModulesAdd
 
 ```
 
-Students viewed most modules 1-2 times with the exception of assignments, choices, folders, and quizzes that were viewed 3-7 times. 
+Students viewed most modules 1-2 times with the exception of assignments, choices, folders, and quizzes that were viewed 3-7 times.  
 
 File and URL module types were both viewed about 1 time per student. Most lecture materials are posted as those modules types so I would have expected them to have more viewership. Two possible reasons to explain this are that students could be returning to downloaded copies of files which would eliminate the need for to view the module again. Similarly they could be going directly to a URL instead of clicking on the module. The other possible reason could be that students are leaving files and URLs open until they are done working with them.
 
@@ -519,7 +521,6 @@ ggplot(q2datalongnoviews, aes(x=Moduletype, y=Value, fill=Measure)) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 10))
 
 select(q2datasum, -AVGTotalModuleviews)
-
 
 ```
 
@@ -604,4 +605,343 @@ ggplot(q32, aes(x=reorder(Eventcontext, Time.y), y =timetoview)) +
 ```
 
 
+## Checklist Module Analysis
 
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
+
+checklist <- cor120 %>%
+  filter(Component == 'Checklist' & userid != 6989 & !(Eventname %in% c("Edit page viewed", 
+                                                       "Report viewed", 
+                                                       "Course module instance list viewed",
+                                                       "Checklist complete",
+                                                       "Teacher checks updated"))) %>% #edit page and report are done by instructor only
+  group_by(week, Eventname) %>%
+  summarise(count = n())
+
+checklist2 <- eng210 %>%
+  filter(Component == 'Checklist' & userid != 6989 & !(Eventname %in% c("Edit page viewed",
+                                                       "Report viewed",
+                                                       "Course module instance list viewed",
+                                                       "Checklist complete",
+                                                       "Teacher checks updated" ))) %>% #edit page and report are done by instructor only
+  group_by(week, Eventname) %>%
+  summarise(count = n())
+
+checklist3 <- bind_rows(eng210, cor120) %>%
+  filter(Component == 'Checklist' & userid != 6989 & !(Eventname %in% c("Edit page viewed",
+                                                       "Report viewed",
+                                                       "Course module instance list viewed",
+                                                       "Checklist complete",
+                                                       "Teacher checks updated"))) %>% #edit page and report are done by instructor only
+  group_by(userid) %>%
+  summarise(count = n())
+
+```
+
+Overall, checklists received a good amount of usage in both of the classes they were used in. In each class, the amount of times students looked at checklists seems to related to how often they actually "checked" activities.
+
+Both classes were very up and down in their usage but I assume this is just due to fluctuations in workload each week leading to less checks needing to be made for the weekly list.
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
+
+#last checklist was posted week 9 which explains drop at the end -- students actually went back and checked off old check lists last 2 weeks
+ggplot(checklist, aes(x=week, y = count, color = Eventname)) + 
+  geom_line(size = 2) +
+  labs(x = "Week",
+       y = "Number of Occurances",
+       title ="Class 1 Checklist Activity") + 
+  theme_minimal()
+
+#high usage throughout
+ggplot(checklist2, aes(x=week, y = count, color = Eventname)) + 
+  geom_line(size = 2)  +
+  labs(x = "Week",
+       y = "Number of Occurances",
+       title ="Class 2 Checklist Activity") + 
+  theme_minimal()
+    
+
+
+
+```
+
+
+
+Although there were students that completely ignored the checklists, most used the checklist. The average number of views plus checks was almost 30 and a decent number of students used the checklist extensively.
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
+
+ggplot(checklist3, aes(x=reorder(userid, count), y = count)) + 
+  geom_point(color = "red", size = 4) + 
+  coord_flip() + 
+  scale_y_continuous(breaks = pretty_breaks(n = 8)) +
+  theme_minimal() +
+  geom_hline(yintercept=mean(checklist3$count), color="blue", linetype="dashed", size=1)  +
+  geom_text(aes(x=10, label=paste("Average: ", round(mean(checklist3$count),1)), y=30), colour="blue", angle=90) +
+  labs(x="Student",
+       y = "Total Views + Checks",
+       title = "Number of Checklist Views + Checks Made by Each Student")
+
+
+```
+
+
+Looking at the weekly view, most students had around 5 views plus checks each week. Every week has some students using the checklist at high numbers and some barely using it the same week. I think this suggests that the usage of the checklist is dependent on how much the student wants to use the checklist rather than the number of tasks on the checklists. 
+
+We do see that the usage of the checklists trends down slightly over the course of the semester however it is not by a significant amount.
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
+
+checklist4 <- bind_rows(eng210, cor120) %>%
+  filter(Component == 'Checklist' & userid != 6989 & !(Eventname %in% c("Edit page viewed",
+                                                       "Report viewed",
+                                                       "Course module instance list viewed",
+                                                       "Checklist complete",
+                                                       "Teacher checks updated"))) %>%
+  group_by(week, userid) %>%
+  summarise(count = n()) 
+
+  
+
+#activity did trend down but not by a lot
+ggplot(checklist4, aes(x=week, y=count)) + 
+  geom_jitter(width = 0.1, alpha=0.5, color = "red", size = 2) + 
+  geom_smooth(se = FALSE, method = "loess") + 
+  theme_clean() +
+  labs(x="Week",
+       y = "Count",
+       title = "Number of Checklist Views + Checks Made by Each Student Weekly")
+
+```
+
+Here is the usage of each student by week. There is a variety of patterns on display here. Some students usage of the checklists were very volatile and others stayed the same over the weeks. Some students also used the checklist less as the semester went on and some used it more. 
+
+Unfortunately there is not enough data for fully investigate why there are so many different patterns of usage, but checklists were used considerably by students. 
+
+*Graphs with no line are students that used the checklist only 0 or 1 times.*
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
+
+#blank graphs only used the checklist once
+ggplot(checklist4, aes(x=week, y=count)) + 
+  geom_line(size = 1.25) + 
+  geom_smooth(se = FALSE, method = lm) + 
+  stat_cor(label.y = 20) +
+  facet_wrap(~userid) 
+
+```
+
+
+## Perusall Module Analysis 
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
+
+
+p1 <- cor120 %>%
+  filter(Component == 'External tool' & Eventname == 'Course module viewed' & Eventcontext != "Other") %>%
+  mutate(Eventcontext = str_replace(Eventcontext, "External tool: Perusall", 
+                                    "External tool: Perusall a"))
+
+p2 <- eng210 %>%
+  filter(Component == 'External tool' & Eventname == 'Course module viewed' & Eventcontext != "Other") %>%
+  mutate(Eventcontext = str_replace(Eventcontext, "External tool: Perusall", 
+                                    "External tool: Perusall b"))
+
+p <- bind_rows(p1, p2)
+
+
+```
+
+
+There were two classes that used Perusall in this dataset. The first class had a more balanced amount of activity over the weeks while the second class had a much greater amount of activity in the second half of this dataset. 
+
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
+
+p3 <-  p %>% 
+  filter(Eventname == "Course module viewed") %>%
+  group_by(class, week, Eventcontext) %>%
+  summarise(count = n())
+
+ggplot(p3, aes(x = week, y = count, fill = class)) + 
+  geom_col() + 
+  facet_wrap(~class) +
+  theme_clean() +
+  labs(x = "Week",
+       y = "Number of Views",
+       Title = "Perusall Module Views by Week")
+
+
+```
+The views per student of each Perusall module was fairly spread out. Almost every Perusall module was at least viewed 1 time per student and the average was 2.3 views per student.
+
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
+
+## views per student for each module
+p4 <- p %>% 
+  group_by(class, numStudents, Eventcontext) %>%
+  summarise(count = n()) %>%
+  mutate(Viewsperstudent = count / numStudents)
+
+p4$names <- fct_anon(as.factor(p4$Eventcontext), prefix = "Reading ")
+
+ggplot(p4, aes(x = reorder(names, Viewsperstudent), y = Viewsperstudent, fill = class)) +
+  geom_col() +
+  coord_flip() +
+  geom_hline(yintercept=mean(p4$Viewsperstudent), color="blue", linetype="dashed", size=1)  +
+  geom_text(aes(x=10, label=paste("Average: ", round(mean(p4$Viewsperstudent),1)), y= mean(p4$Viewsperstudent) + 0.2), colour="blue", angle=90) +
+  theme_clean() +
+  labs(x = "Views Per Student",
+       y = "Perusall Module Name",
+       title = "Views Per Student for Each Perusall Module")
+
+```
+Perusall modules were viewed by each student on average of 2.9 times. This is positive as noted previously, students viewed URL modules 0.7 times on average and file modules 1.2 times on average. 
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
+
+p5 <- p %>%   
+  group_by(class, userid, Eventcontext) %>%
+  summarise(count = n()) %>%
+  ungroup() %>%
+  group_by(class, Eventcontext) %>%
+  summarise(AVGStudentVisits = mean(count)) 
+
+p5$names <- fct_anon(as.factor(p5$Eventcontext), prefix = "Reading ")
+
+ggplot(p5, aes(x = reorder(names, AVGStudentVisits), y = AVGStudentVisits, fill = class)) + 
+  geom_col() + 
+  coord_flip() +
+  geom_hline(yintercept=mean(p5$AVGStudentVisits), color="blue", linetype="dashed", size=1)  +
+  geom_text(aes(x=10, label=paste("Average: ", round(mean(p5$AVGStudentVisits),1)), y= mean(p5$AVGStudentVisits) + 0.2), colour="blue", angle=90) +
+  theme_clean() +
+  labs(x = "Perusall Module Name",
+       y = "Average Number of Times Viewed by Students",
+       title = "Average Number of Times Each Student Viewed Perusall Module")
+
+```
+## Overall Comparisons Between Test Classes and Regular Classes
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
+compare <- alldata %>%
+  filter(Eventname == "Course viewed") %>%
+  group_by(testgroup, class, numStudents) %>%
+  summarise(count = n()) %>%
+  mutate(countstudentratio = count / numStudents) 
+
+comparedatatable <- compare %>% 
+  ungroup() %>%
+  group_by(testgroup) %>%
+  summarise(median = median(countstudentratio), avg = mean(countstudentratio))
+
+```
+
+
+Comparing the views per student of the test classes and the regular classes, the test classes had more views per student. The regular classes had an average of 126 views per student and the test classes had an average of 141 views per student, an increase of 15 students. 
+
+While we do not have enough data here to confirm that the increase was the result of the new plug-ins rather than normal class variation, having an increase in Moodle activity in the test classes is good news for the effectiveness of the plug-ins.
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
+
+ggplot(compare, aes(x=reorder(class, countstudentratio), y = countstudentratio, fill = as.factor(testgroup))) + 
+  geom_col() +
+  labs(x = "Class", 
+       y = "Course Views Per Student", 
+       title = "Course Views Per Student For Each Class") +
+  theme_clean() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 10)) +
+  geom_text(aes(label = round(countstudentratio, 1)), vjust = -0.75, size = 3)
+
+comparedatatable
+
+```
+
+## When Are Students Using Moodle?
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
+activityheatmap <- alldata %>%
+  filter(Eventname == "Course viewed") %>%
+  group_by(weekday, roundedtime) %>%
+  summarise(count = n())
+
+activityheatmap2 <- alldata %>%
+  filter(Eventname == "A submission has been submitted.") %>%
+  group_by(weekday, roundedtime) %>%
+  summarise(count = n())
+
+```
+
+Most activity between 8:00 - 15:00 is due to classes occuring during that time range which brings students on to Moodle. 
+
+
+
+During the weekdays, with the exception of Friday, students start viewing Moodle more often at about 18:00 and views stay high until 01:00 in the morning. These are likley the most usual hours spend on coursework. During those weekdays Tuesday and Wednesday night received more views than Thursday and Friday night suggesting the students spend less time on Moodle at the end of the week.
+
+Friday receives by far the least amount of views with the number lowering right after 15:00 when classes end. Surprisingly, Saturday receives more Moodle views than Wednesday, Thursday and Friday. 
+
+Sunday is as expected the day with the most activity. Starting at about 9:00, Students stay active on Sunday until 01:00 in the morning on Monday.
+
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
+
+ggplot(activityheatmap, aes(roundedtime, weekday)) + geom_tile(aes(fill = count),colour = "white", na.rm = TRUE) +
+  scale_fill_gradient(low = "#d8e1cf", high = "#438484", na.value = "grey50") +  
+  guides(fill=guide_legend(title="Total Views")) +
+  theme_minimal() + 
+  labs(title = "Moodle Views by Day of Week and Hour", x = "Views Per Hour", y = "Day of Week") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.text.y = element_text(face="bold"), axis.text.x =   element_text(face="bold")) +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 10)) +
+  geom_text(aes(label = count), size = 3)
+
+```
+Here is the visualization with assignment submissions rather than course views.
+
+Like in the graph above, the results from 8:00 - 15:00 are likely ot indicative of any trends since assignments turned in at that time are likely assignments in-class assignments.
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
+
+ggplot(activityheatmap2, aes(roundedtime, weekday)) + geom_tile(aes(fill = count),colour = "white", na.rm = TRUE) +
+  scale_fill_gradient(low = "#d8e1cf", high = "#438484", na.value = "grey50") +  
+  guides(fill=guide_legend(title="Total Submissions")) +
+  theme_minimal() + 
+  labs(title = "Moodle Submissions by Day of Week and Hour", x = "Submissions Per Hour", y = "Day of Week") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.text.y = element_text(face="bold"), axis.text.x = element_text(face="bold"))  +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 10)) +
+  geom_text(aes(label = count), size = 3) 
+
+```
+
+
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
+
+timedata <- alldata %>%
+  filter(Eventname == "Course viewed" | Eventname == "A submission has been submitted.")
+
+```
+
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
+
+ggplot(timedata, aes(x=roundedtime, fill = Eventname)) + 
+  stat_count(position = "dodge") +
+  theme_clean() +
+  labs(x = "Rounded Time", 
+       y = "COunt", 
+       title = "Moodle Interactions by Time of Day")
+
+
+```
+
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
+
+ggplot(timedata, aes(x=weekday, fill = Eventname)) + 
+  stat_count(position = "dodge") +
+  theme_clean() +
+  labs(x = "Weekday", 
+       y = "Count", 
+       title = "Moodle Interactions by Day of Week")
+
+```
