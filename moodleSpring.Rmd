@@ -482,7 +482,7 @@ Students viewed most modules 1-2 times with the exception of assignments, choice
 
 File and URL module types were both viewed about 1 time per student. Most lecture materials are posted as those modules types so I would have expected them to have more viewership. Two possible reasons to explain this are that students could be returning to downloaded copies of files which would eliminate the need for to view the module again. Similarly they could be going directly to a URL instead of clicking on the module. The other possible reason could be that students are leaving files and URLs open until they are done working with them.
 
-*How to read: The assignment module received an average of 103 views on each module posted, each student viewed an assignment module on average 7 times, and each class had an average of 10 assignment modules added*
+*How to read: The assignment module received an average of 103.5 views on each module posted, each student viewed an assignment module on average 6.7 times, and each class had an average of 9.8 assignment modules added*
 ```{r, message=FALSE, warning=FALSE, echo=FALSE}
 
 q2datasum <- q2data %>%
@@ -549,13 +549,13 @@ ggplot(q31, aes(x=Date, y=Views)) +
   geom_col(fill = "#2438f0") +
   theme_clean() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 10)) +
-  labs(Title = "Distrubtion of views For Each Recorded Lecture",
-       X = "Date Recording Posted",
-       y = "Number of Views")
+  labs(x = "Recording Posted Date",
+       y = "Number of Views",
+       title = "Views For Each Recorded Lecture")
 
 ```
 
-Most students viewed a recorded lecture within about 5 days of a recording being posted. However another decently sized group viewed the recording lecture 13+ days after posting.
+Most students viewed a recorded lecture within about 5 days of a recording being posted. However another decently sized group viewed recorded lectures 13+ days after the recording was posted.
 
 ```{r, message=FALSE, warning=FALSE, echo=FALSE}
 #how many days after post do students watch
@@ -907,7 +907,7 @@ ggplot(activityheatmap2, aes(roundedtime, weekday)) + geom_tile(aes(fill = count
   theme_minimal() + 
   labs(title = "Moodle Submissions by Day of Week and Hour", x = "Submissions Per Hour", y = "Day of Week") +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.text.y = element_text(face="bold"), axis.text.x = element_text(face="bold"))  +
-    theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 10)) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 10)) +
   geom_text(aes(label = count), size = 3) 
 
 ```
@@ -943,5 +943,264 @@ ggplot(timedata, aes(x=weekday, fill = Eventname)) +
   labs(x = "Weekday", 
        y = "Count", 
        title = "Moodle Interactions by Day of Week")
+
+```
+## when the assignment was assigned and the average time for student to first access the assignment, and average time for submission in relation to the due date? I sometimes would post assignments due in a week, but found the students won’t submit until the day before and I believe may not even access them until the day before. I’ve cut down on the week long assignments, and now would typically do about 4 days because of this, but would like to see some numbers that could reinforce what I think.
+
+
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
+##q41
+#which min = time viewed
+#time assignemnt was submitted
+
+#data setup function
+q4fun <- function(dataframe) {
+  
+  #fix this
+  dataframe <- dataframe %>%
+    filter(Eventname %in% c("Course module viewed", "A submission has been submitted."))
+  
+  dataframe$tempassignmentid <- str_extract_all(dataframe$Description, pattern = 
+                                           one_or_more("'") %R%
+                                           capture(one_or_more(DGT)) %R%
+                                           one_or_more("'")
+  )
+  
+  dataframe$tempassignmentid <- sapply(dataframe$tempassignmentid, paste, collapse = ",")
+  dataframe$tempassignmentid <- str_replace_all(dataframe$tempassignmentid, "'", "")
+  dataframe <- separate(dataframe, tempassignmentid, into = c("c1", "c2", "c3", "c4"))
+  
+dataframe <- dataframe %>%
+  mutate(
+    assignmentid = if_else(Eventname == "A submission has been submitted.", dataframe$c3, dataframe$c2)
+  ) %>%
+  select(-c1, -c2, -c3, -c4) 
+
+
+dataframe11 <- dataframe %>%  
+  filter(Eventname == "A submission has been submitted.") %>%
+  group_by(userid, assignmentid) %>% 
+  slice(which.min(Time)) #only the first time a student turned in an assignment (removes changes)
+
+dataframe12 <- dataframe %>%
+  filter(Eventname == "Course module viewed") %>%
+  group_by(userid, assignmentid) %>% 
+  slice(which.min(Time)) #only the first time a student viewed an assignment
+
+  #makes sure this joined correctly
+  #goal is to make sure the feedback viewed group of data has the grade grouped of data joined on the correct coloum 
+  #use time differene when for sure
+  dataframe <- left_join(dataframe11, dataframe12, by = c('userid' = 'userid', 'assignmentid' = 'assignmentid'))
+
+  
+  return(dataframe)
+}
+
+#runs on each dataframe to eliminate duplications errors from the left join
+q1<- q4fun(com101)
+q2<- q4fun(psy101)
+q3<- q4fun(eng101)
+q4<- q4fun(mth101)
+q5<- q4fun(art157)
+q6<- q4fun(ge206)
+q7<- q4fun(ce435)
+q8<- q4fun(cor120)
+q9<- q4fun(eng210)
+q10<- q4fun(ba420)
+q11<- q4fun(ba330)
+q12<- q4fun(ba431)
+q13<- q4fun(ba344)
+
+q4data <- bind_rows(q1,
+                    q2,
+                    q3,
+                    q4,
+                    q5,
+                    q6,
+                    q7,
+                    q8,
+                    q9,
+                    q10,
+                    q11,
+                    q12,
+                    q13
+)
+
+#q4data <- na.omit(q1data)
+
+
+
+```
+
+
+*Note: I removed any assignment that was submitted within 1.5 hours from the first view to remove any in-class assignments or extremely short assignments from the dataset*
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
+
+q41 <- q4data %>%
+  mutate(timeview_submit = difftime(Time.x, Time.y, units = "days")) %>%
+  filter(timeview_submit > 0.0625) ## removes anything turned in less than 1 1/2 hours to avoid in class or extremely short assignments
+
+
+q4quantile <- quantile(as.numeric(q41$timeview_submit), .8)
+
+ggplot(q41, aes(x = timeview_submit)) + 
+  geom_histogram(color = "white", binwidth  = 1, fill = "#c9401e") +
+  scale_x_continuous(breaks = pretty_breaks(n = 15)) +
+  geom_vline(xintercept=q4quantile, color="blue", linetype="dashed", size=1) +
+  geom_text(aes(x=q4quantile + 0.5, label="80% of Students", y=125), colour="blue", angle=90) +
+  theme_clean() +
+  labs(x = "Time Between First View and Submission (Days)",
+       y = "Count",
+       title = "How Long it Took Students to Submit Assignments After Viewing",
+       subtitle = paste("Mean =", round(mean(q41$timeview_submit),1), "Days   Median =", round(median(q41$timeview_submit),1), "Days"))
+
+```
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
+# average for each student
+
+q42 <- q4data %>%
+  mutate(timeview_submit = difftime(Time.x, Time.y, units = "days")) %>%
+  filter(timeview_submit > 0.0625) %>% ## removes turned in less than 1 1/2 hours to avoid in class or extremely short assignments
+  group_by(class.x, userid) %>%
+  summarise(meantime = mean(timeview_submit), medtime = median(timeview_submit))
+
+ggplot(q42, aes(x = 1:nrow(q42), y = meantime)) + 
+  geom_point(color = "#2438f0", size = 2, alpha = 0.45) +
+  theme_clean() +
+  labs(x = "Student",
+       y = "Average Time Between First View and Submission (Days)",
+       title = "Average Time Between First View and Submission For Each Student")
+
+
+ggplot(q42, aes(x = class.x, y = meantime, color = class.x)) + 
+  geom_jitter(size = 2, alpha = 0.45, width = 0.2) +
+  theme_clean() +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, size = 10)) +
+  labs(x = "Student",
+       y = "Average Time Between First View and Submission (Days)",
+       title = "Average Time Between First View and Submission For Each Student")
+
+
+
+```
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
+##by assignment
+
+q43 <- q4data %>%
+  mutate(timeview_submit = difftime(Time.x, Time.y, units = "days")) %>%
+  filter(timeview_submit > 0.0625) 
+
+q431 <- q4data %>%
+  mutate(timeview_submit = difftime(Time.x, Time.y, units = "days")) %>%
+  filter(timeview_submit > 0.0625) %>%
+  group_by(assignmentid) %>%
+  summarise(meantime = mean(timeview_submit))
+
+ggplot(q43, aes(x=reorder(assignmentid, timeview_submit), y = timeview_submit)) + 
+  geom_point(alpha = 0.5) +
+  geom_point(data = q431, aes(x=assignmentid, y = meantime, color = "red"), size = 1.5) +
+  scale_y_continuous(breaks = pretty_breaks(n = 15)) +
+  coord_flip() +
+  theme_minimal()
+
+```
+## I would be interested in information about how often students watch any video content (whether recorded lectures or video clips). I often think these will be appealing, but I'm not sure I'm right about that!
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
+##q51
+## lecture version was already added
+## str_detect "Video" or other keywords to find modules for regular
+
+#data setup
+q51 <- alldata %>%
+  filter(str_detect(Eventcontext, "Video") | 
+           str_detect(Eventcontext,"video") | 
+           str_detect(Eventcontext, "Recording") | 
+           str_detect(Eventcontext, "recording")) %>%
+  filter(!str_detect(Eventcontext, "Assignment:") & #remove assignments because they are mandatory
+           Eventname == "Course module viewed")
+
+
+  q51$tempassignmentid <- str_extract_all(q51$Description, pattern = 
+                                           one_or_more("'") %R%
+                                           capture(one_or_more(DGT)) %R%
+                                           one_or_more("'")
+  )
+  
+  q51$tempassignmentid <- sapply(q51$tempassignmentid, paste, collapse = ",")
+  q51$tempassignmentid <- str_replace_all(q51$tempassignmentid, "'", "")
+  q51 <- separate(q51, tempassignmentid, into = c("c1", "c2"))
+  
+q51 <- q51 %>%
+  rename(assignmentid = c2) %>%
+  select(-c1) %>%
+  filter(assignmentid != "571150") #removes one outlier that contains all info students need for a week (including a video) = misleading
+
+```
+
+
+*Note: I cannot see if a student actually watched a video or how long they watched a video, just that they opened it up at the least*
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
+
+q52 <- q51 %>%
+  group_by(class, numStudents, assignmentid) %>%
+  summarise(count = n())
+
+ggplot(q52, aes(x = 1:nrow(q52), y = count, color = numStudents)) + 
+  geom_point(size = 3) +
+  theme_clean() +
+  labs(x = "Moodle Video ID",
+       y = "Number of Views",
+       title = "How Many Students Watched Video Content on Moodle")
+```
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
+
+```
+
+
+## I would like to know more about how often students access Moodle in general, time of day, number of log-ins. And perhaps average time spent on Moodle overall per session or per day? When I look at logs for my own courses I see a lot of students access to check something, but they don't seem to stay on there very long. I'm wondering if this is about usage vs. course design.
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
+##q61
+##answered by above graphs
+## can not see how long someone was on moodle
+
+## try and answer with
+## check each log for a user id
+## if time between current log and next log is > 10 min, session prob ended at the last log
+## if time between current log and next log is < 10 min, session prob still going
+## maybe select most common module type used during block as a bonus
+## plot most common time blocks, ie, a lot took place at 9:00PM - 10:00PM
+
+```
+
+
+
+## I also have the same question below about when do students access an assignment vs. turn it in, and the question about when (or frankly IF) students access instructor feedback and maybe even how long they spend accessing that feedback. 
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
+##q71
+##find how many students never viewed feedback
+## note - for feedback to show sutdents have to press the + button
+## not show how many did not view feedback at all or only looked at the score shown without pressing the "+" and left the module 
+## meaning == number of students that actually did not view is likley lower but the logs are limited
+```
+
+## how many times was status of submission viewed
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
+
+
+
+```
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
+
+
 
 ```
