@@ -209,7 +209,11 @@ q1fun <- function(dataframe) {
     slice(which.min(Time)) #only the first time an instructor graded an assignment (removes changes)
   
   dataframe12 <- dataframe %>%
-    filter(Eventname == "Feedback viewed")
+    filter(Eventname == "Feedback viewed") %>%
+    group_by(userid, assignmentid) %>%
+    slice(which.min(Time)) #only the first time a student views feedback (removes extras)
+  
+
   
   dataframe <- rbind(dataframe11, dataframe12)
   
@@ -223,6 +227,9 @@ q1fun <- function(dataframe) {
     group_by(assignmentid, usergraded) %>% 
     slice(which.min(Time.y)) 
   
+  fbviewedna <- as.numeric(nrow(dataframe11)) - as.numeric(nrow(dataframe)) 
+  dataframe$fbnotviewed <- fbviewedna
+  dataframe$fbviewed <- as.numeric(nrow(dataframe))
   return(dataframe)
 }
 
@@ -328,7 +335,13 @@ ggplot(q1datasum, aes(x=class.x, y = med, fill = SampleSize)) +
 
 
 ```
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
 
+# students that did not view feedback
+
+ggplot(q1data, aes(x=class.x, y = fbnotviewed)) + geom_point() + geom_point(data = q1data, aes(x=class.y, y = fbviewed, color = "red"))
+
+```
 ## Question 2:  Which Moodle Resources get the Most and Least Number of Interactions
 
 ```{r, message=FALSE, warning=FALSE, echo=FALSE}
@@ -872,8 +885,7 @@ activityheatmap2 <- alldata %>%
 
 ```
 
-Most activity between 8:00 - 15:00 is due to classes occuring during that time range which brings students on to Moodle. 
-
+Most activity between 8:00 - 15:00 is due to classes occurring during that time range which brings students on to Moodle. 
 
 
 During the weekdays, with the exception of Friday, students start viewing Moodle more often at about 18:00 and views stay high until 01:00 in the morning. These are likley the most usual hours spend on coursework. During those weekdays Tuesday and Wednesday night received more views than Thursday and Friday night suggesting the students spend less time on Moodle at the end of the week.
@@ -895,9 +907,12 @@ ggplot(activityheatmap, aes(roundedtime, weekday)) + geom_tile(aes(fill = count)
   geom_text(aes(label = count), size = 3)
 
 ```
+
 Here is the visualization with assignment submissions rather than course views.
 
-Like in the graph above, the results from 8:00 - 15:00 are likely ot indicative of any trends since assignments turned in at that time are likely assignments in-class assignments.
+Like in the graph above, the results from 8:00 - 15:00 are likely not indicative of any trends since assignments turned in at that time are likely assignments in-class assignments.
+
+The trend of extra activity on sunday and wednesday nights continues here.
 
 ```{r, message=FALSE, warning=FALSE, echo=FALSE}
 
@@ -921,12 +936,16 @@ timedata <- alldata %>%
 
 ```
 
+Viewing interactions by only time also shows high usage during the class times from about 08:00 - 15:00. 
+
+After 14:00, activity steadly drops until 20:00 suggesting further that this is when students start going on Moodle again after class hours. There is also a larger number of assignment submissions starting at 14:00 until 01:00 the next day.
 
 ```{r, message=FALSE, warning=FALSE, echo=FALSE}
 
 ggplot(timedata, aes(x=roundedtime, fill = Eventname)) + 
   stat_count(position = "dodge") +
   theme_clean() +
+  geom_text(aes(label = ..count..), stat = "count", position = position_dodge(width = 1),  size = 3, vjust = -0.75) +
   labs(x = "Rounded Time", 
        y = "COunt", 
        title = "Moodle Interactions by Time of Day")
@@ -934,12 +953,14 @@ ggplot(timedata, aes(x=roundedtime, fill = Eventname)) +
 
 ```
 
+Similarly looking at totals by day of the week, the activity of a week peaks on tuesday and then falls each day until Sunday.
 
 ```{r, message=FALSE, warning=FALSE, echo=FALSE}
 
 ggplot(timedata, aes(x=weekday, fill = Eventname)) + 
   stat_count(position = "dodge") +
   theme_clean() +
+  geom_text(aes(label = ..count..), stat = "count", position = position_dodge(width = 1),  size = 3, vjust = -0.75) + 
   labs(x = "Weekday", 
        y = "Count", 
        title = "Moodle Interactions by Day of Week")
@@ -950,9 +971,6 @@ ggplot(timedata, aes(x=weekday, fill = Eventname)) +
 
 
 ```{r, message=FALSE, warning=FALSE, echo=FALSE}
-##q41
-#which min = time viewed
-#time assignemnt was submitted
 
 #data setup function
 q4fun <- function(dataframe) {
@@ -1033,6 +1051,9 @@ q4data <- bind_rows(q1,
 
 ```
 
+Students turned in their assignments on average 3.8 days after first viewing them. Similar to the time it took for students to viewed feedback, the median of 3 days is a good representation of the data as result of outliers from students assignments many days before submitting. 
+
+The two highest values of turn in times were 1 and 2 days suggesting that students like complete assignments quickly once they do look at them. This data is well distributed however and there is a decent number of students in most numbers of days from view to submission.
 
 *Note: I removed any assignment that was submitted within 1.5 hours from the first view to remove any in-class assignments or extremely short assignments from the dataset*
 
@@ -1057,6 +1078,10 @@ ggplot(q41, aes(x = timeview_submit)) +
        subtitle = paste("Mean =", round(mean(q41$timeview_submit),1), "Days   Median =", round(median(q41$timeview_submit),1), "Days"))
 
 ```
+
+Looking at the average time from first view to submission for each student by class, the times vary between classes. Some classes like class 10 and 11 are grouped tightly while others like class 1 and 9 have turn in times spread out widely.
+
+The diverse levels of turn in times between classes suggest that class structure may have a strong impact on how long students spend between viewing and assignment and turning it in but there is not quite enough data here to confirm that assumption.
 
 ```{r, message=FALSE, warning=FALSE, echo=FALSE}
 # average for each student
@@ -1086,6 +1111,11 @@ ggplot(q42, aes(x = class.x, y = meantime, color = class.x)) +
 
 
 ```
+
+Looking at average time from first view to submission by assignment rather than class show that the bulk the data is under 10 days. Additionally, assignments with higher average view to submission times have a more spread out group of submissions while the lower average assignments tending to have tighter groupings of submissions.
+
+The logs give no clear answer to why the groups differ because they do not capture assignment due dates, one possible reason could be that when assignments have due dates shortly after they are posted, students are forced to complete the assignment not long after they view it leading to tighter groups. Assignments posted with longer due means that students are not forcced to complete the assignment shortly after viewing leading to more flexibility in when they complete the assignment and more spread out groupings.
+
 ```{r, message=FALSE, warning=FALSE, echo=FALSE}
 ##by assignment
 
@@ -1099,12 +1129,17 @@ q431 <- q4data %>%
   group_by(assignmentid) %>%
   summarise(meantime = mean(timeview_submit))
 
-ggplot(q43, aes(x=reorder(assignmentid, timeview_submit), y = timeview_submit)) + 
-  geom_point(alpha = 0.5) +
-  geom_point(data = q431, aes(x=assignmentid, y = meantime, color = "red"), size = 1.5) +
+ggplot() + 
+  geom_point(data = q43, aes(x=reorder(assignmentid, timeview_submit), y = timeview_submit, color = "Submission"), alpha = 0.5) +
+  geom_point(data = q431, aes(x=assignmentid, y = meantime, color = "Average Submission Time"), size = 1.5) +
   scale_y_continuous(breaks = pretty_breaks(n = 15)) +
+  scale_color_fivethirtyeight() +
   coord_flip() +
-  theme_minimal()
+  theme_minimal() +
+  labs(x = "Assignment ID",
+        y = "Time Between First View and Submission (Days)",
+        title = "Time Between First View and Submission For Each Assignment",
+        subtitle = "Time of Each Submission and Average Submission Time Plotted")
 
 ```
 ## I would be interested in information about how often students watch any video content (whether recorded lectures or video clips). I often think these will be appealing, but I'm not sure I'm right about that!
@@ -1141,8 +1176,10 @@ q51 <- q51 %>%
 
 ```
 
+Almost all video content was viewed by a proportionate amount of students in comparison to class size. Some videos were optional recordings which explains why they recieved views less than their class size.
 
 *Note: I cannot see if a student actually watched a video or how long they watched a video, just that they opened it up at the least*
+*Note2: There may be missing data here. The logs do not capture what file type a module is, to gather this data I used any module with "Video" or "Recording" in the title which means that videos without clear naming were not used in this visualization.* 
 
 ```{r, message=FALSE, warning=FALSE, echo=FALSE}
 
@@ -1153,9 +1190,11 @@ q52 <- q51 %>%
 ggplot(q52, aes(x = 1:nrow(q52), y = count, color = numStudents)) + 
   geom_point(size = 3) +
   theme_clean() +
+  guides(fill=guide_legend(title="Number of Students in Class")) +
   labs(x = "Moodle Video ID",
        y = "Number of Views",
-       title = "How Many Students Watched Video Content on Moodle")
+       title = "How Many Students Watched Video Content on Moodle",
+       color = "Number of Students in Class")
 ```
 
 ```{r, message=FALSE, warning=FALSE, echo=FALSE}
@@ -1176,10 +1215,363 @@ ggplot(q52, aes(x = 1:nrow(q52), y = count, color = numStudents)) +
 ## if time between current log and next log is < 10 min, session prob still going
 ## maybe select most common module type used during block as a bonus
 ## plot most common time blocks, ie, a lot took place at 9:00PM - 10:00PM
+## this session time does not mean that they left moodle, just that they left the module course, they could be going to a different course
+
+
+# only user ids that have turned in an assignment or taken a quiz
+q6students <- alldata %>%
+  filter(Eventname == "A submission has been submitted." | Eventname == "Quiz attempt started") %>%
+  select(userid)
+
+q61 <- alldata %>%
+  filter(userid %in% q6students$userid)
+
+
+q61$sessionid <- 0
+
+inc <- function(x){
+  eval.parent(substitute(x <- x + 1))
+}
+
+
+q61 <- q61 %>%
+  arrange(userid, Time) %>%
+  filter(!is.na(userid)) %>%
+  mutate(tdiff = Time - lag(Time))
+
+value <- 0
+nval <- as.numeric(nrow(q61))
+nval <- nval - 3
+
+q6fun <- function(x) {
+  for( i in 2:nval){
+    if(x[i,20] < 3600){
+      if(x[i, 14] != x[i-1,14]){
+        x[i,19] <- inc(value)
+      } else{
+        x[i,19] <- value
+      }
+    }
+    else{
+      x[i,19] <- inc(value)
+    }
+  }
+  return(x)
+}
+
+
+q61 <- q6fun(q61)
+
+  
+
+```
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
+
+q6students <- alldata %>%
+  filter(Eventname == "A submission has been submitted." | Eventname == "Quiz attempt started") %>%
+  select(userid)
+
+
+
+inc <- function(x){
+  eval.parent(substitute(x <- x + 1))
+}
+
+q6fun <- function(x, value) {
+
+
+  
+x <- x %>%
+  filter(userid %in% q6students$userid)
+
+
+
+
+x$sessionid <- 0
+
+
+x <- x %>%
+  arrange(userid, Time) %>%
+  filter(!is.na(userid)) %>%
+  mutate(tdiff = Time - lag(Time))
+
+nval <- as.numeric(nrow(x))
+
+  for( i in 2:nval){
+    if(x[i,20] < 3600){
+      if(x[i, 14] != x[i-1,14]){
+        x[i,19] <- inc(value)
+      } else{
+        x[i,19] <- value
+      }
+    }
+    else{
+      x[i,19] <- inc(value)
+    }
+  }
+
+x$value <- value
+  return(x)
+}
+
+q661 <- q6fun(com101, 0)
+q662 <- q6fun(psy101, q661[1,21] + 1)
+q663 <- q6fun(eng101, q662[1,21] + 1)
+q664 <- q6fun(mth101, q663[1,21] + 1)
+q665 <- q6fun(art157, q664[1,21] + 1)
+q666 <- q6fun(ge206, q665[1,21] + 1)
+q667 <- q6fun(ce435, q666[1,21] + 1)
+q668 <- q6fun(cor120, q667[1,21] + 1)
+q669 <- q6fun(eng210, q668[1,21] + 1)
+q6610 <- q6fun(ba420, q669[1,21] + 1)
+q6611 <- q6fun(ba330, q6610[1,21] + 1)
+q6612 <- q6fun(ba431, q6611[1,21] + 1)
+q6613 <- q6fun(ba344, q6612[1,21] + 1)
+
+q61 <- rbind(
+  q661,
+  q662,
+  q663,
+  q664,
+  q665,
+  q666,
+  q667,
+  q668,
+  q669,
+  q6610,
+  q6611,
+  q6612,
+  q6613
+  )
 
 ```
 
 
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
+
+q62 <- q61 %>%
+  group_by(sessionid) %>%
+  summarise(start = max(Time), end = min(Time)) %>%
+  mutate(sessionlength = difftime(start, end, units = "mins")) %>%
+  filter(sessionlength < 500) #removes a few extremely long sessions created by moodle admin functions
+
+
+percentless10 <- q62 %>%
+  mutate(less10 = if_else(as.numeric(sessionlength) <= 10, "yes", "no")) %>%
+  group_by(less10) %>%
+  summarise( percent = 100 * n() / nrow(q62))
+
+
+q62quantile <- quantile(as.numeric(q62$sessionlength), percentless10[2,2] * 0.01)
+
+ggplot(q62, aes(x = as.numeric(sessionlength))) + 
+  geom_histogram(binwidth = 5, color = "white", fill="#c9401e") +
+  scale_x_continuous(breaks = pretty_breaks(n = 15)) +
+  theme_clean() +
+  geom_vline(xintercept=q62quantile, color="blue", linetype="dashed", size=1) +
+  geom_text(aes(x=q62quantile + 5, label=paste(round(percentless10[2,2],1),"% of Sessions"), y=4000), colour="blue", angle=90) +
+  labs(x = "Session Length (Minutes)",
+       y = "Count of Sessions",
+       title = "How Long Students Were On Moodle",
+       subtitle = paste(round(percentless10[2,2],1), "% of Moodle Sessions are Under 10 Minutes"))
+  
+summary(as.numeric(q62$sessionlength))
+
+
+
+```
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
+
+# removes quick hop ons that are less than 10 minutes
+
+q63 <- q62 %>%
+  filter(sessionlength > 10 & sessionlength < 500) #removes a few extremely long sessions created by moodle admin functions 
+
+ggplot(q63, aes(x=sessionlength)) + 
+  geom_histogram(binwidth = 5, color = "White", fill="#c9401e") +
+  scale_x_continuous(breaks = pretty_breaks(n = 15)) +
+  theme_clean() +
+  labs(x = "Session Length (Minutes)",
+       y = "Count of Sessions",
+       title = "How Long Students Were On Moodle",
+       subtitle = "Sessions Under 10 Minutes Removed")
+
+```
+
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
+
+q64 <- q62 %>%
+  filter(sessionlength < 10) %>%
+  mutate(roundedstart = format(round_date(start,unit="hour"),"%H:%M"),
+         weekday = wday(start, label=TRUE))
+
+q65 <- q62 %>%
+  filter(sessionlength > 10) %>%
+  mutate(roundedstart = format(round_date(start,unit="hour"),"%H:%M"),
+         weekday = wday(start, label=TRUE))
+
+q64heatmap <- q64 %>%
+  group_by(weekday, roundedstart) %>%
+  summarise(count = n())
+
+## OLD COLORS =   scale_fill_gradient(low = "#d8e1cf", high = "#438484", na.value = "grey50") 
+ggplot(q64heatmap, aes(roundedstart, weekday)) + geom_tile(aes(fill = count),colour = "white", na.rm = TRUE) +
+  scale_fill_gradient_tableau() +
+  guides(fill=guide_legend(title="Total Sessions")) +
+  theme_minimal() +
+  labs(title = "Under 10 Minute Moodle Sessions by Day of Week and Hour", x = "Submissions Per Hour", y = "Day of Week") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.text.y = element_text(face="bold"), axis.text.x = element_text(face="bold"))  +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 10)) +
+  geom_text(aes(label = count), size = 3)
+
+
+q65heatmap <- q65 %>%
+  group_by(weekday, roundedstart) %>%
+  summarise(count = n())
+
+ggplot(q65heatmap, aes(roundedstart, weekday)) + geom_tile(aes(fill = count),colour = "white", na.rm = TRUE) +
+  scale_fill_gradient_tableau() +
+  guides(fill=guide_legend(title="Total Sessions")) +
+  theme_minimal() +
+  labs(title = "Over 10 Minute Moodle Sessions by Day of Week and Hour", x = "Submissions Per Hour", y = "Day of Week") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.text.y = element_text(face="bold"), axis.text.x = element_text(face="bold"))  +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 10)) +
+  geom_text(aes(label = count), size = 3)
+
+```
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
+
+## Average per student
+## really indicates how often a student checked things
+
+q66 <- q61 %>%
+  group_by(userid, sessionid) %>%
+  summarise(start = max(Time), end = min(Time)) %>%
+  mutate(sessionlength = difftime(start, end, units = "mins")) %>%
+  filter(sessionlength < 500) %>% #removes a few extremely long sessions created by moodle admin function
+  group_by(userid) %>%
+  summarise(avg = mean(sessionlength))
+
+q67 <- q61 %>%
+  group_by(class, sessionid) %>%
+  summarise(start = max(Time), end = min(Time)) %>%
+  mutate(sessionlength = difftime(start, end, units = "mins")) %>%
+  filter(sessionlength < 500) %>%#removes a few extremely long sessions created by moodle admin function
+  group_by(class) %>%
+  summarise(avg = mean(sessionlength))
+
+summary(as.numeric(q67$avg))
+summary(as.numeric(q66$avg))
+summary(as.numeric(q62$sessionlength))
+
+
+```
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
+
+## most commonly used event per session
+
+q68 <- q61 %>%
+  group_by(sessionid) %>%
+  count(Eventname) %>%
+  rename(count = n) %>%
+  slice_max(Eventname, n = 1) %>% # top 1 events per session
+  group_by(Eventname) %>%
+  summarise(count2 = n()) %>%
+  filter(count2 > 50) #removes uncommon events to trim visualization
+
+ggplot(q68, aes(x = reorder(Eventname, count2, FUN = sum), y = count2)) + 
+  geom_col(fill="#c9401e") + 
+  coord_flip() +
+  theme_clean() +
+  labs(x = "Event Name",
+       y = "Count",
+       title = "Which Actions Were Most Commonly Used In a Session")
+
+################### not great predictor ##########
+## number of logs per session
+# q69 <- q61 %>%
+#   group_by(sessionid) %>%
+#   summarise(count = n()) %>%
+#   filter(count < 50)
+# 
+# q69 <- inner_join(q69, q62, by = c("sessionid" = "sessionid"))
+# q69$sessionlength <- as.numeric(q69$sessionlength)
+# 
+# mod1 <- lm(sessionlength ~ count + start, data = q69)
+# 
+# summary(mod1)
+# 
+# res <- mod1$residuals
+# fvalues <- mod1$fitted.values
+# temp <- cbind(q69, res, fvalues)
+# 
+# # ggplot(temp, aes(x=fvalues, y=res)) + 
+# #   geom_point() +
+# #   geom_smooth()
+# 
+# ggplot(temp, aes(x=as.factor(count), y=res)) + 
+#   geom_boxplot() +
+#   coord_flip()
+# 
+# ggplot(q69, aes(x=count, y = sessionlength)) + geom_point() + geom_smooth(se = FALSE, method = lm)
+```
+
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
+
+##sessions per day
+
+q69 <- q61 %>%
+  group_by(userid, sessionid) %>%
+  summarise(start = max(Time), end = min(Time)) %>%
+  mutate(sessionlength = difftime(start, end, units = "mins")) %>%
+  filter(sessionlength < 500) %>% #removes a few extremely long sessions created by moodle admin function
+  mutate(day = day(start),
+         month = month(start)) %>%
+  ungroup() %>%
+  group_by(day, month, userid) %>%
+  summarise(sessions = n())
+
+summary(q69$sessions)
+##average is 1.8
+# means we can assume students are checking all the classes they need to twice a day
+
+ggplot(q69, aes(x=as.factor(sessions))) + 
+  geom_bar(fill="#c9401e") +
+  theme_clean() +
+  labs(x = "Number of Sessions Per Day",
+       y = "Count",
+       title = "How Many Times Students Visited Moodle Each Day",
+       subtitle = paste("Average = ", round(mean(q69$sessions),1), "Sessions Per Day"))
+
+```
+
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
+
+## idk if i wanna keep this
+
+## time series of number of overall sessions
+## see if midterms meant anything
+
+q692 <-  q61 %>%
+  group_by(userid, sessionid) %>%
+  summarise(start = max(Time), end = min(Time)) %>%
+  mutate(sessionlength = difftime(start, end, units = "mins")) %>%
+  filter(sessionlength < 500) %>% #removes a few extremely long sessions created by moodle admin function
+  mutate(date = as.Date(start, "%m/%d/%Y")) %>%
+  ungroup() %>%
+  group_by(date) %>%
+  summarise(sessions = n())
+
+ggplot(q692, aes(x=date, y=sessions)) + geom_point() + scale_x_date() + geom_smooth()
+
+```
 
 ## I also have the same question below about when do students access an assignment vs. turn it in, and the question about when (or frankly IF) students access instructor feedback and maybe even how long they spend accessing that feedback. 
 
@@ -1189,13 +1581,14 @@ ggplot(q52, aes(x = 1:nrow(q52), y = count, color = numStudents)) +
 ## note - for feedback to show sutdents have to press the + button
 ## not show how many did not view feedback at all or only looked at the score shown without pressing the "+" and left the module 
 ## meaning == number of students that actually did not view is likley lower but the logs are limited
+
 ```
 
-## how many times was status of submission viewed
 
 ```{r, message=FALSE, warning=FALSE, echo=FALSE}
 
-
+  temp <- ce435 %>%
+    filter(Eventname %in% c("Feedback viewed", "The submission has been graded.", "The status of the submission has been viewed.", "A submission has been submitted."))
 
 ```
 
