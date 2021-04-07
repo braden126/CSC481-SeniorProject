@@ -180,11 +180,11 @@ alldata <- bind_rows(
 
 ## Project Introduction
 
-The objective of this analysis is to research how effective the new plug-ins were that are being tested during the Spring 2021 semester and research how students are using Moodle during the 2020-2021 year. The goal is for this analysis to give faculty and instructors a better idea of how students are using Moodle and how they can structure classes that work best with students. Along with providing information on how the test plug-ins were used to aid in deciding which plug-ins should be implemented in future classes.
+The objective of this analysis is to research how effective the new plug-ins were that are being tested during the Spring 2021 semester and research how students have been using Moodle during the 2020-2021 year. The goal is for this analysis to give faculty and instructors a better idea of how students are using Moodle and how they can structure classes to work seamlessly with students. Along with providing information on how the test plug-ins were used to aid in deciding which plug-ins should be implemented in future classes.
 
 ## The Data
 
-This research was done with 13 total classes, 5 classes from the Fall 2020 semester, and 8 classes from the Spring 2021 semester that were using the some of the test plug-ins. The majority of of these classes had 10-25 students and class start times from 9:00 - 2:30.
+This research was done with 13 total classes, 5 classes from the Fall 2020 semester, and 8 classes from the Spring 2021 semester that were using some of the test plug-ins. The majority of of these classes had 10-25 students and class start times from 9:00 - 2:30.
 
 ## How Long Does it Take for Students to View Their Feedback?
 
@@ -193,9 +193,11 @@ This research was done with 13 total classes, 5 classes from the Fall 2020 semes
 #data setup function
 q1fun <- function(dataframe) {
   
+  # select only relevant columns
   dataframe <- dataframe %>%
     filter(Eventname %in% c("Feedback viewed", "The submission has been graded."))
   
+  #gather assignmentid and the userid that was graded
   dataframe$tempassignmentid <- str_extract_all(dataframe$Description, pattern = 
                                            one_or_more("'") %R%
                                            capture(one_or_more(DGT)) %R%
@@ -213,23 +215,19 @@ q1fun <- function(dataframe) {
     ) %>%
     select(-c1, -c2, -c3, -c4) 
   
+  #graded assignments
   dataframe11 <- dataframe %>%  
     filter(Eventname == "The submission has been graded.") %>%
     group_by(usergraded, assignmentid) %>% 
     slice(which.min(Time)) #only the first time an instructor graded an assignment (removes changes)
   
+  #feedbacks viewed
   dataframe12 <- dataframe %>%
     filter(Eventname == "Feedback viewed") %>%
     group_by(userid, assignmentid) %>%
     slice(which.min(Time)) #only the first time a student views feedback (removes extras)
   
-
-  
-  dataframe <- rbind(dataframe11, dataframe12)
-  
-  #makes sure this joined correctly
-  #goal is to make sure the feedback viewed group of data has the grade grouped of data joined on the correct coloum 
-  #use time differene when for sure
+  #join data
   dataframe <- left_join(dataframe11, dataframe12, by = c('assignmentid' = 'assignmentid','usergraded' = 'userid'))
   
   #select the first time a student viewed the assignment only
@@ -240,6 +238,7 @@ q1fun <- function(dataframe) {
   fbviewedna <- as.numeric(nrow(dataframe11)) - as.numeric(nrow(dataframe)) 
   dataframe$fbnotviewed <- fbviewedna
   dataframe$fbviewed <- as.numeric(nrow(dataframe))
+  
   return(dataframe)
 }
 
@@ -281,7 +280,7 @@ q1data <- na.omit(q1data)
 
 Most students viewed their feedback within a couple days but almost every class had outliers where a student would not view their feedback for days. 
 
-*Note: This data also does not include students that never checked their feedback.*
+*Note: This data does not include feedback that was never checked.*
 
 ```{r, message=FALSE, warning=FALSE, echo=FALSE}
 q1datac <- q1data %>%
@@ -327,11 +326,14 @@ When including all classes, the median time to view feedback was 17.6 hours and 
 For most classes, the median time to view feedback was at or under 20 hours. This includes many of the classes with the largest sample sizes suggesting that the median time to view feedback is a better representation of how long it takes for students to view feedback than the mean.
 
 ```{r, message=FALSE, warning=FALSE, echo=FALSE}
+
+#gather averages
 q1datasum <- q1data %>%
   group_by(class.x) %>%
   mutate(timetoviewfb = -1 * (difftime(Time.x, Time.y, units = "hours"))) %>%
   summarise(med = median(timetoviewfb), avg = mean(timetoviewfb), SampleSize = n())
 
+#gather medians
 q1dataAvgMed <- q1data %>%
   ungroup() %>%
   mutate(timetoviewfb = -1 * (difftime(Time.x, Time.y, units = "hours"))) %>%
@@ -359,6 +361,7 @@ q2fun <- function(dataframe) {
   numstudent <- dataframe$numStudents[1]
   dataframe2 <- dataframe
   
+  #gather module types
   dataframe$Moduletype <- str_extract(dataframe$Eventcontext, pattern = 
                                  capture(one_or_more(WRD)) %R%
                                  ":" 
@@ -389,11 +392,10 @@ q2fun <- function(dataframe) {
     group_by(Moduletype) %>%
     summarise(ModulesAdded = n())
   
-  ####
   #join
   
   dataframe22 <- inner_join(dataframe, dataframe2, by = c("Moduletype" = "Moduletype")) %>%
-    mutate(viewsperadd = TotalModuleviews / ModulesAdded, viewsperstudent = viewsperadd / numstudent) %>% ##22 students 
+    mutate(viewsperadd = TotalModuleviews / ModulesAdded, viewsperstudent = viewsperadd / numstudent) %>% 
     arrange(desc(viewsperstudent))
   
   return(dataframe22)
@@ -428,6 +430,7 @@ q2data <- bind_rows(q21,
                     q213
 )
 
+#remove na's that result from some rarely used module types
 q2data <- q2data %>%
   mutate(Moduletype = str_replace(Moduletype, "tool", "External Tool")) %>%
   filter(!is.na(Moduletype))
@@ -436,13 +439,14 @@ q2data <- q2data %>%
 ```
 
 
-The assignment module type received the most views as expected. The next highest viewed were files, which also had the highest number of modules added so its high view count is expected.
+The assignment module type received the most views as expected. The next highest viewed module was files, which also had the highest number of modules added so its high view count is expected.
 
 The viewership of URL is surprising since it had a large number of modules added but a low number of views. The other module types having low total viewership is expected given that there was less of those module types posted.
 
 
 ```{r, message=FALSE, warning=FALSE, echo=FALSE}
 
+#gather totals
 q2datasumtotals <- q2data %>%
   group_by(Moduletype) %>%
   summarise(
@@ -450,8 +454,6 @@ q2datasumtotals <- q2data %>%
     TotalModulesAdded = sum(ModulesAdded)
   ) %>%
   mutate(ViewsPerModule = TotalModuleviews / TotalModulesAdded)
-
-
 
 ggplot(q2datasumtotals, aes(x=Moduletype, y=TotalModuleviews, fill=TotalModulesAdded)) +
   geom_col(position = "dodge") +
@@ -464,8 +466,6 @@ ggplot(q2datasumtotals, aes(x=Moduletype, y=TotalModuleviews, fill=TotalModulesA
   theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 10)) +
   guides(fill=guide_legend(title="Total Modules Added"))
 
-q2datasumtotals
-
 ```
 
 When looking at views per module, glossary is clearly at the top. Only one glossary module was posted in the sample of logs but 450 views is very high and suggests it was used by students frequently. The choice model was similar, it was only used in one course but received quite a few views.
@@ -475,6 +475,7 @@ Outside of glossary and choice modules, assignment and quiz modules received the
 Forums also had an amount of views per module posted similar to quizzes suggesting that when forums are used, students are willing to interact with them as much as they do with important module types like quizzes.
 
 ```{r, message=FALSE, warning=FALSE, echo=FALSE}
+
 ggplot(q2datasumtotals, aes(x=Moduletype, y=ViewsPerModule, fill=TotalModulesAdded)) +
   geom_col(position = "dodge") +
   theme_clean() +
@@ -486,18 +487,16 @@ ggplot(q2datasumtotals, aes(x=Moduletype, y=ViewsPerModule, fill=TotalModulesAdd
   theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 10)) +
   guides(fill=guide_legend(title="Total Modules Added"))
 
-
-
-
 ```
 
-Students viewed most modules 1-2 times with the exception of assignments, choices, folders, and quizzes that were viewed 3-7 times.  
+Students viewed most modules on average 1-2 times with the exception of assignments, choices, folders, and quizzes that were viewed an average of 3-7 times.  
 
-File and URL module types were both viewed about 1 time per student. Most lecture materials are posted as those modules types so I would have expected them to have more viewership. Two possible reasons to explain this are that students could be returning to downloaded copies of files which would eliminate the need for to view the module again. Similarly they could be going directly to a URL instead of clicking on the module. The other possible reason could be that students are leaving files and URLs open until they are done working with them.
+File and URL module types were both viewed on average about 1 time per student. Most lecture materials are posted as those modules types so I would have expected them to have more viewership. Two possible reasons to explain this are that students could be returning to downloaded copies of files which would eliminate the need to view the module again. Similarly they could be going directly to a URL instead of clicking on the module. The other possible reason could be that students are leaving files and URLs open until they are done working with them.
 
 *How to Read - The assignment module received an average of 103.5 views on each module posted, each student viewed an assignment module on average 6.7 times, and each class had an average of 9.8 assignment modules added*
 ```{r, message=FALSE, warning=FALSE, echo=FALSE}
 
+#gather sums
 q2datasum <- q2data %>%
   group_by(Moduletype) %>%
   summarise(
@@ -507,6 +506,7 @@ q2datasum <- q2data %>%
     AVGModuleViewsPerStudent = mean(viewsperstudent)
   )
 
+#pivot to long format
 q2datalong <- q2datasum %>%
   pivot_longer(
     cols = c(AVGTotalModuleviews, AVGModulesAdded, AVGViewsPerModule, AVGModuleViewsPerStudent),
@@ -514,6 +514,7 @@ q2datalong <- q2datasum %>%
     values_to = "Value"
   )
 
+#cleaner version of sums
 q2datalongnoviews <- q2datasum %>%
   pivot_longer(
     cols = c(AVGTotalModuleviews, AVGModulesAdded, AVGViewsPerModule, AVGModuleViewsPerStudent),
@@ -541,9 +542,9 @@ select(q2datasum, -AVGTotalModuleviews)
 
 ```{r, message=FALSE, warning=FALSE, echo=FALSE}
 
-#clean data
+#clean data names and factors dates
 q31 <- class4 %>%
-  filter(str_detect(Eventcontext, "URL: Lecture Video") & Eventname == 'Course module viewed') %>%
+  filter(str_detect(Eventcontext, "URL: Lecture Video") & Eventname == 'Course module viewed') %>% 
   group_by(Eventcontext) %>%
   summarise(Views = n()) %>%
   mutate(Eventcontext = str_replace(Eventcontext, "URL: Lecture Video for ", ""),
@@ -554,7 +555,7 @@ q31 <- class4 %>%
 
 ```
 
-Only one class in the sample of logs posted recorded lectures consistently so this is a small sample size. In that class, viewership mostly stayed the same throughout the semester, each recording was viewed 3-9 times out of a class size of 24.
+Only one class in the sample of logs posted recorded lectures consistently so this is a small sample size. In that class, viewership mostly stayed the same throughout the semester, each recording was viewed about 3-9 times out of a class size of 24.
 
 ```{r, message=FALSE, warning=FALSE, echo=FALSE}
 
@@ -573,12 +574,15 @@ Most students viewed a recorded lecture within about 5 days of a recording being
 ```{r, message=FALSE, warning=FALSE, echo=FALSE}
 #how many days after post do students watch
 
+#gather module added dates
 q321 <- class4 %>%
   filter(str_detect(Eventcontext, "URL: Lecture Video") & Eventname == 'Course module created')
 
+#gather module viewed dats
 q322 <- class4 %>%
   filter(str_detect(Eventcontext, "URL: Lecture Video") & Eventname == 'Course module viewed')
 
+#join data
 q32 <- inner_join(q322, q321, by = c("Eventcontext" = "Eventcontext"))
 
 q32 <- q32 %>%
@@ -598,10 +602,12 @@ ggplot(q32, aes(x=timetoview)) +
 ```
 
 
-Examining further, it does seem that there may be two groups of views for recording lectures. The first group views recordings a few days after the recording was posted, likely for homework, missing the class, or just going over it again. A second group views the recorded lecture days after they were posted, likely for test preparation. This trend is strongest in November. Most November lectures received more views 5+ days after the lecture was posted than other months suggesting that the views may have been for preparing for end of semester exams or finals.
+Examining further, it does seem that there may be two groups of views for recorded lectures. The first group views recordings a few days after the recording was posted, likely for homework, missing the class, or just going over it again. A second group views the recorded lecture days after they were posted, likely for test preparation. This trend is strongest in November. Most November lectures received more views 5+ days after the lecture was posted than other months suggesting that the views may have been for preparing for end of semester exams or finals.
 
 
 ```{r, message=FALSE, warning=FALSE, echo=FALSE}
+
+#clean names and date for ggplot
 q32 <- q32 %>%
   mutate(Eventcontext = str_replace(Eventcontext, "URL: Lecture Video for ", ""),
          Eventcontext = str_replace(Eventcontext, "URL: Lecture Video For ", ""),
@@ -624,10 +630,11 @@ ggplot(q32, aes(x=reorder(Eventcontext, Time.y), y =timetoview)) +
 #data setup function
 q4fun <- function(dataframe) {
   
-  #fix this
+  #filters to only views abd submissions
   dataframe <- dataframe %>%
     filter(Eventname %in% c("Course module viewed", "A submission has been submitted."))
-  
+ 
+  #gather assignmentid 
   dataframe$tempassignmentid <- str_extract_all(dataframe$Description, pattern = 
                                            one_or_more("'") %R%
                                            capture(one_or_more(DGT)) %R%
@@ -644,27 +651,26 @@ dataframe <- dataframe %>%
   ) %>%
   select(-c1, -c2, -c3, -c4) 
 
-
+#gather submissions
 dataframe11 <- dataframe %>%  
   filter(Eventname == "A submission has been submitted.") %>%
   group_by(userid, assignmentid) %>% 
   slice(which.min(Time)) #only the first time a student turned in an assignment (removes changes)
 
+#gather views
 dataframe12 <- dataframe %>%
   filter(Eventname == "Course module viewed") %>%
   group_by(userid, assignmentid) %>% 
   slice(which.min(Time)) #only the first time a student viewed an assignment
 
-  #makes sure this joined correctly
-  #goal is to make sure the feedback viewed group of data has the grade grouped of data joined on the correct coloum 
-  #use time differene when for sure
-  dataframe <- left_join(dataframe11, dataframe12, by = c('userid' = 'userid', 'assignmentid' = 'assignmentid'))
+#join
+dataframe <- left_join(dataframe11, dataframe12, by = c('userid' = 'userid', 'assignmentid' = 'assignmentid'))
 
   
   return(dataframe)
 }
 
-#runs on each dataframe to eliminate duplications errors from the left join
+#runs on each dataframe to eliminate duplication errors from the left join
 q1<- q4fun(class1)
 q2<- q4fun(class2)
 q3<- q4fun(class3)
@@ -697,7 +703,7 @@ q4data <- bind_rows(q1,
 
 ```
 
-Students turned in their assignments on average 3.8 days after first viewing them. Similar to the time it took for students to view feedback, the median of 3 days is a good representation of the data as result of outliers from students assignments that were viewed many days before submitting. 
+Students turned in their assignments on average 3.8 days after first viewing them. Similar to the time it took for students to view feedback, the median of 3 days is a good representation of the data as result of outliers from assignments that were viewed many days before submitting. 
 
 The two highest values of turn in times were 1 and 2 days suggesting that students like to complete assignments quickly once they do look at them. This data is well distributed however and there is a decent number of students in most numbers of days from view to submission.
 
@@ -705,6 +711,7 @@ The two highest values of turn in times were 1 and 2 days suggesting that studen
 
 ```{r, message=FALSE, warning=FALSE, echo=FALSE}
 
+#removes short assignments
 q41 <- q4data %>%
   mutate(timeview_submit = difftime(Time.x, Time.y, units = "days")) %>%
   filter(timeview_submit > 0.0625) ## removes anything turned in less than 1 1/2 hours to avoid in class or extremely short assignments
@@ -730,8 +737,8 @@ Looking at the average time from first view to submission for each student by cl
 The diverse levels of submission times between classes suggest that class structure may have a strong impact on how long students spend between viewing an assignment and submitting it but there is not quite enough data here to confirm that assumption.
 
 ```{r, message=FALSE, warning=FALSE, echo=FALSE}
-# average for each student
 
+#gathers average for each class/student
 q42 <- q4data %>%
   mutate(timeview_submit = difftime(Time.x, Time.y, units = "days")) %>%
   filter(timeview_submit > 0.0625) %>% ## removes turned in less than 1 1/2 hours to avoid in class or extremely short assignments
@@ -753,15 +760,17 @@ ggplot(q42, aes(x = class.x, y = meantime, color = class.x)) +
 
 Looking at the average time from first view to submission by assignment rather than class shows that the bulk of the data is under 10 days. Additionally, assignments with higher average view to submission times have a more spread out group of submissions while the lower average assignments tend to have tighter groupings of submissions.
 
-The logs give no clear answer to why the groupings differ because they do not capture assignment due dates. One possible reason could be that when assignments have due dates shortly after they are posted, students are forced to complete the assignment not long after they view it, leading to tighter groups. Assignments posted with longer due means that students are not forced to complete the assignment shortly after viewing, leading to more flexibility in when they complete the assignment and more spread out groupings.
+The logs give no clear answer to why the groupings differ because they do not capture assignment due dates. One possible reason could be that when assignments have due dates shortly after they are posted, students are forced to complete the assignment not long after they view it, leading to tighter groups. Assignments posted with longer due dates means that students are not forced to complete the assignment shortly after viewing, leading to more flexibility in when they can complete the assignment and more spread out groupings.
 
 ```{r, message=FALSE, warning=FALSE, echo=FALSE}
-##by assignment
 
+
+#removes short assignments
 q43 <- q4data %>%
   mutate(timeview_submit = difftime(Time.x, Time.y, units = "days")) %>%
   filter(timeview_submit > 0.0625) 
 
+#finds mean for each assignment
 q431 <- q4data %>%
   mutate(timeview_submit = difftime(Time.x, Time.y, units = "days")) %>%
   filter(timeview_submit > 0.0625) %>%
@@ -787,20 +796,18 @@ ggplot() +
 ## How Are Students Interacting With Video Content Posted on Moodle?
 
 ```{r, message=FALSE, warning=FALSE, echo=FALSE}
-##q51
-## lecture version was already added
-## str_detect "Video" or other keywords to find modules for regular
 
 #data setup
+#filters to data containing video keywords
 q51 <- alldata %>%
   filter(str_detect(Eventcontext, "Video") | 
            str_detect(Eventcontext,"video") | 
            str_detect(Eventcontext, "Recording") | 
            str_detect(Eventcontext, "recording")) %>%
-  filter(!str_detect(Eventcontext, "Assignment:") & #remove assignments because they are mandatory
+  filter(!str_detect(Eventcontext, "Assignment:") & #remove assignments because they are mandatory = not a good representation 
            Eventname == "Course module viewed")
 
-
+#gathers assignmentid
   q51$tempassignmentid <- str_extract_all(q51$Description, pattern = 
                                            one_or_more("'") %R%
                                            capture(one_or_more(DGT)) %R%
@@ -814,7 +821,7 @@ q51 <- alldata %>%
 q51 <- q51 %>%
   rename(assignmentid = c2) %>%
   select(-c1) %>%
-  filter(assignmentid != "571150") #removes one outlier that contains all info students need for a week (including a video) = misleading
+  filter(assignmentid != "571150") #removes one misleading outlier that contains all info students need for a week (including a video)
 
 ```
 
@@ -826,6 +833,7 @@ Almost all video content was viewed by a proportionate amount of students in com
 
 ```{r, message=FALSE, warning=FALSE, echo=FALSE}
 
+#gather sums
 q52 <- q51 %>%
   group_by(class, numStudents, assignmentid) %>%
   summarise(count = n())
@@ -842,14 +850,17 @@ ggplot(q52, aes(x = 1:nrow(q52), y = count, color = numStudents)) +
 
 
 
-## When Are Student Using Moodle?
+## When Are Students Using Moodle?
 
 ```{r, message=FALSE, warning=FALSE, echo=FALSE}
+
+#heat map with views
 activityheatmap <- alldata %>%
   filter(Eventname == "Course viewed") %>%
   group_by(weekday, roundedtime) %>%
   summarise(count = n())
 
+#heat map with submissions
 activityheatmap2 <- alldata %>%
   filter(Eventname == "A submission has been submitted.") %>%
   group_by(weekday, roundedtime) %>%
@@ -861,11 +872,13 @@ This visualization shows how many course views occurred on Moodle during each ti
 
 Most activity between 8:00 - 15:00 is due to classes occurring during that time range which brings students on to Moodle. 
 
-During the weekdays, with the exception of Friday, student views on Moodle after normal class times peak at about 20:00 and views stay high until 01:00 in the morning. During those weekdays, Tuesday and Wednesday night received more views than Thursday and Friday night suggesting the students spend less time on Moodle at the end of the week.
+During the weekdays, with the exception of Friday, student views on Moodle after normal class times peak at about 20:00 and views stay high until 01:00 in the morning. During those weekdays, Tuesday and Wednesday night received more views than Thursday and Friday night suggesting that students spend less time on Moodle at the end of the week.
 
 Friday receives by far the least amount of views with the number lowering right after 14:00 when the main class times start to end. 
 
 Sunday is as expected, the day with the most activity. Starting at about 9:00, Students stay fairly active on Sunday until 01:00 in the morning on Monday.
+
+Another interesting point is that there is a large number of students that used Moodle late Saturday night. 
 
 
 ```{r, message=FALSE, warning=FALSE, echo=FALSE}
@@ -885,7 +898,7 @@ Here is the visualization with assignment submissions rather than course views.
 
 Like in the graph above, the results from 8:00 - 15:00 are likely not indicative of any trends since assignments turned in at that time are likely in-class assignments.
 
-The trend of extra activity on Sunday and Wednesday nights continues here.
+The trend of extra activity on Sunday and Wednesday nights continues here. Along with a large number of submissions late Saturday night (Sunday 12:00 AM - 01:00 AM).
 
 ```{r, message=FALSE, warning=FALSE, echo=FALSE}
 
@@ -903,6 +916,7 @@ ggplot(activityheatmap2, aes(roundedtime, weekday)) + geom_tile(aes(fill = count
 
 ```{r, message=FALSE, warning=FALSE, echo=FALSE}
 
+#only views and submissions
 timedata <- alldata %>%
   filter(Eventname == "Course viewed" | Eventname == "A submission has been submitted.")
 
@@ -946,29 +960,28 @@ ggplot(timedata, aes(x=weekday, fill = Eventname)) +
 
 ```{r, message=FALSE, warning=FALSE, echo=FALSE}
 
+#gathers only users that have submitted an assignment or taken a quiz
+#this is used to filter out most of the moodle administrative userids that do not reflect students
 q6students <- alldata %>%
   filter(Eventname == "A submission has been submitted." | Eventname == "Quiz attempt started") %>%
   select(userid)
 
 
-
+#function to increment values
 inc <- function(x){
   eval.parent(substitute(x <- x + 1))
 }
 
+#classifies activity into sessions
 q6fun <- function(x, value) {
 
-
-  
+#filters out non student ids
 x <- x %>%
   filter(userid %in% q6students$userid)
 
-
-
-
 x$sessionid <- 0
 
-
+#arranges by userid/time, removes na
 x <- x %>%
   arrange(userid, Time) %>%
   filter(!is.na(userid)) %>%
@@ -976,6 +989,8 @@ x <- x %>%
 
 nval <- as.numeric(nrow(x))
 
+#for each row - if the time between rows is greater than an hour, create a new sessions else - create a new sessions
+#if the userid do not match, also create a new session
   for( i in 2:nval){
     if(x[i,20] < 3600){
       if(x[i, 14] != x[i-1,14]){
@@ -993,6 +1008,7 @@ x$value <- value
   return(x)
 }
 
+#runs function on each class individually because a few userid intersect between classes
 q661 <- q6fun(class1, 0)
 q662 <- q6fun(class2, q661[1,21] + 1)
 q663 <- q6fun(class3, q662[1,21] + 1)
@@ -1007,6 +1023,7 @@ q6611 <- q6fun(class11, q6610[1,21] + 1)
 q6612 <- q6fun(class12, q6611[1,21] + 1)
 q6613 <- q6fun(class13, q6612[1,21] + 1)
 
+#join data
 q61 <- rbind(
   q661,
   q662,
@@ -1027,19 +1044,20 @@ q61 <- rbind(
 
 Most Students are not on a Moodle course very long. The average session length was about 13.5 minutes while about 73% of Moodle sessions were under 10 minutes.
 
-*note - These logs only capture how long students spent on __one__ Moodle course. If a student were to leave one of the Moodle courses used in this analysis and spend time in one of their other Moodle courses, it will not be tracked. This means that we can assume that students are likely spending the average 13.5 minutes in their other Moodle courses as well.* 
+*Note - These logs only capture how long students spent on __one__ Moodle course. If a student were to leave one of the Moodle courses used in this analysis and spend time in one of their other Moodle courses, it will not be tracked. This means that we can assume that students are likely spending the average 13.5 minutes in their other Moodle courses as well.* 
 
 *Note - A Moodle session's length is defined as the time from the first action taken in a session to the last action taken. If there is more than an hour between a student's last two actions, the current session ends and a new session begins. An hour was chosen because students may be spending a long time viewing a single resource in a module, creating no new log files despite them being on Moodle for an extended period of time.*
 
 ```{r, message=FALSE, warning=FALSE, echo=FALSE}
 
+#gather sums
 q62 <- q61 %>%
   group_by(sessionid) %>%
   summarise(start = max(Time), end = min(Time)) %>%
   mutate(sessionlength = difftime(start, end, units = "mins")) %>%
   filter(sessionlength < 300) #removes a few extremely long sessions created by moodle admin functions
 
-
+#find percent less than 10 minutes 
 percentless10 <- q62 %>%
   mutate(less10 = if_else(as.numeric(sessionlength) <= 10, "yes", "no")) %>%
   group_by(less10) %>%
@@ -1066,7 +1084,6 @@ Here, sessions less than 10 minutes are removed to get a closer look at the medi
 ```{r, message=FALSE, warning=FALSE, echo=FALSE}
 
 # removes quick hop ons that are less than 10 minutes
-
 q63 <- q62 %>%
   filter(sessionlength > 10 & sessionlength < 300) #removes a few extremely long sessions created by moodle admin functions 
 
@@ -1089,20 +1106,23 @@ With the short sessions, one interesting point is that there is a large amount o
 
 ```{r, message=FALSE, warning=FALSE, echo=FALSE}
 
+#under 10 minute sessions
 q64 <- q62 %>%
   filter(sessionlength < 10) %>%
   mutate(roundedstart = format(round_date(start,unit="hour"),"%H:%M"),
          weekday = wday(start, label=TRUE))
 
+#over 10 minute sessions
 q65 <- q62 %>%
   filter(sessionlength > 10) %>%
   mutate(roundedstart = format(round_date(start,unit="hour"),"%H:%M"),
          weekday = wday(start, label=TRUE))
-
+#under 10 minute sessions
 q64heatmap <- q64 %>%
   group_by(weekday, roundedstart) %>%
   summarise(count = n())
 
+#over 10 minute sessions
 q65heatmap <- q65 %>%
   group_by(weekday, roundedstart) %>%
   summarise(count = n())
@@ -1132,14 +1152,11 @@ ggplot(q64heatmap, aes(roundedstart, weekday)) + geom_tile(aes(fill = count),col
 
 ```
 
-Looking at the average by class, there is quite a difference between classes. The high differences suggest that class structure has an impact on the length of Moodle sessions as well. I would expect classes that commonly have quizzes on Moodle or have a high numbers of weekly modules have longer Moodle sessions on average due to those activities keeping students on Moodle for longer.
+Looking at the average by class, there is quite a difference between classes. The high differences suggest that class structure has an impact on the length of Moodle sessions as well. I would expect classes that commonly have quizzes on Moodle or have a high number of weekly modules have longer Moodle sessions on average due to those activities keeping students on Moodle for longer.
 
 ```{r, message=FALSE, warning=FALSE, echo=FALSE}
 
-## Average per student
-## really indicates how often a student checked things
-
-# most of this data is already shown in the other visuals - prob not needed
+# most of this data is already shown in the other visuals - probably not needed, keeping her for future use
 q66 <- q61 %>%
   group_by(userid, sessionid) %>%
   summarise(start = max(Time), end = min(Time)) %>%
@@ -1172,8 +1189,7 @@ Students visited their Moodle course on average 1.8 times a day. Since the logs 
 
 ```{r, message=FALSE, warning=FALSE, echo=FALSE}
 
-##sessions per day
-
+##gathers sessions per day
 q69 <- q61 %>%
   group_by(userid, sessionid) %>%
   summarise(start = max(Time), end = min(Time)) %>%
@@ -1184,10 +1200,6 @@ q69 <- q61 %>%
   ungroup() %>%
   group_by(day, month, userid) %>%
   summarise(sessions = n())
-
-#summary(q69$sessions)
-##average is 1.8
-# means we can assume students are checking all the classes they need to twice a day
 
 ggplot(q69, aes(x=as.factor(sessions))) + 
   geom_bar(fill="#c9401e") +
@@ -1203,6 +1215,7 @@ ggplot(q69, aes(x=as.factor(sessions))) +
 
 ```{r, message=FALSE, warning=FALSE, echo=FALSE}
 
+#filters to only checklists and removes some unneeded events and removes instructor from the data
 checklist <- class8 %>%
   filter(Component == 'Checklist' & userid != 6989 & !(Eventname %in% c("Edit page viewed", 
                                                        "Report viewed", 
@@ -1212,6 +1225,7 @@ checklist <- class8 %>%
   group_by(week, Eventname) %>%
   summarise(count = n())
 
+#filters to only checklists and removes some unneeded events and removes instructor from the data
 checklist2 <- class9 %>%
   filter(Component == 'Checklist' & userid != 6989 & !(Eventname %in% c("Edit page viewed",
                                                        "Report viewed",
@@ -1221,6 +1235,7 @@ checklist2 <- class9 %>%
   group_by(week, Eventname) %>%
   summarise(count = n())
 
+#join
 checklist3 <- bind_rows(class9, class8) %>%
   filter(Component == 'Checklist' & userid != 6989 & !(Eventname %in% c("Edit page viewed",
                                                        "Report viewed",
@@ -1232,13 +1247,12 @@ checklist3 <- bind_rows(class9, class8) %>%
 
 ```
 
-Overall, the new checklist plug-in modules received a good amount of usage in both of the classes they were used in. In each class, the amount of times students looked at checklists seems to related to how often they actually "checked" activities.
+Overall, the new checklist plug-in modules received a good amount of usage in both of the classes they were used in. In each class, the amount of times students looked at checklists seems to relate to how often they actually "checked" activities.
 
 Both classes were very "up and down" in their usage but I assume this is just due to fluctuations in workload each week leading to less checks needing to be made for the weekly list.
 
 ```{r, message=FALSE, warning=FALSE, echo=FALSE}
 
-#last checklist was posted week 9 which explains drop at the end -- students actually went back and checked off old check lists last 2 weeks
 ggplot(checklist, aes(x=week, y = count, color = Eventname)) + 
   geom_line(size = 2) +
   labs(x = "Week",
@@ -1247,7 +1261,6 @@ ggplot(checklist, aes(x=week, y = count, color = Eventname)) +
        color = "Event Name") + 
   theme_minimal() 
 
-#high usage throughout
 ggplot(checklist2, aes(x=week, y = count, color = Eventname)) + 
   geom_line(size = 2)  +
   labs(x = "Week",
@@ -1285,6 +1298,7 @@ We do see that the usage of the checklists trends down slightly over the course 
 
 ```{r, message=FALSE, warning=FALSE, echo=FALSE}
 
+#gathers checklist data again
 checklist4 <- bind_rows(class9, class8) %>%
   filter(Component == 'Checklist' & userid != 6989 & !(Eventname %in% c("Edit page viewed",
                                                        "Report viewed",
@@ -1315,6 +1329,7 @@ Unfortunately there is not enough data to fully investigate why there are so man
 
 ```{r, message=FALSE, warning=FALSE, echo=FALSE}
 
+#facet for each students activity
 #blank graphs only used the checklist once
 ggplot(checklist4, aes(x=week, y=count)) + 
   geom_line(size = 1.25) + 
@@ -1328,17 +1343,19 @@ ggplot(checklist4, aes(x=week, y=count)) +
 
 ```{r, message=FALSE, warning=FALSE, echo=FALSE}
 
-
+#gathers only perusall data and and views
 p1 <- class8 %>%
   filter(Component == 'External tool' & Eventname == 'Course module viewed' & Eventcontext != "Other") %>%
   mutate(Eventcontext = str_replace(Eventcontext, "External tool: Perusall", 
                                     "External tool: Perusall a"))
 
+#gathers only perusall data and and views
 p2 <- class9 %>%
   filter(Component == 'External tool' & Eventname == 'Course module viewed' & Eventcontext != "Other") %>%
   mutate(Eventcontext = str_replace(Eventcontext, "External tool: Perusall", 
                                     "External tool: Perusall b"))
 
+#join data
 p <- bind_rows(p1, p2)
 
 
@@ -1348,6 +1365,7 @@ There were two classes that used Perusall in this dataset. The first class had a
 
 ```{r, message=FALSE, warning=FALSE, echo=FALSE}
 
+#sum of views for each week
 p3 <-  p %>% 
   filter(Eventname == "Course module viewed") %>%
   group_by(class, week, Eventcontext) %>%
@@ -1375,6 +1393,7 @@ p4 <- p %>%
   summarise(count = n()) %>%
   mutate(Viewsperstudent = count / numStudents)
 
+# anonymized assignment names
 p4$names <- fct_anon(as.factor(p4$Eventcontext), prefix = "Reading ")
 
 ggplot(p4, aes(x = reorder(names, Viewsperstudent), y = Viewsperstudent, fill = class)) +
@@ -1390,10 +1409,11 @@ ggplot(p4, aes(x = reorder(names, Viewsperstudent), y = Viewsperstudent, fill = 
 
 ```
 
-Perusall modules were viewed by each student an average of 2.9 times. This is positive as noted previously, students viewed URL modules 0.7 times on average and file modules 1.2 times on average.
+Perusall modules were viewed by each student an average of 2.9 times. This is positive as noted previously, students viewed URL modules 0.7 times on average and file modules 1.2 times on average. The Perusall module outperformed both of those module types significantly. 
 
 ```{r, message=FALSE, warning=FALSE, echo=FALSE}
 
+#mean views per student
 p5 <- p %>%   
   group_by(class, userid, Eventcontext) %>%
   summarise(count = n()) %>%
@@ -1401,6 +1421,7 @@ p5 <- p %>%
   group_by(class, Eventcontext) %>%
   summarise(AVGStudentVisits = mean(count)) 
 
+# anonymized assignment names
 p5$names <- fct_anon(as.factor(p5$Eventcontext), prefix = "Reading ")
 
 ggplot(p5, aes(x = reorder(names, AVGStudentVisits), y = AVGStudentVisits, fill = class)) + 
@@ -1419,12 +1440,14 @@ ggplot(p5, aes(x = reorder(names, AVGStudentVisits), y = AVGStudentVisits, fill 
 ## Overall Comparisons Between Test Classes and Regular Classes
 
 ```{r, message=FALSE, warning=FALSE, echo=FALSE}
+#course views per student
 compare <- alldata %>%
   filter(Eventname == "Course viewed") %>%
   group_by(testgroup, class, numStudents) %>%
   summarise(count = n()) %>%
   mutate(countstudentratio = count / numStudents) 
 
+#simple table for viewing
 comparedatatable <- compare %>% 
   ungroup() %>%
   group_by(testgroup) %>%
@@ -1434,7 +1457,7 @@ comparedatatable <- compare %>%
 
 While only the Perusall and Checklist plug-ins were captured by the logs, these plug-ins combined with the plug-ins that could not be captured by the logs did seem to have an effect on the test group of classes. 
 
-Comparing the views per student of the test classes and the regular classes, the test classes had more views per student. The regular classes had an average of 126 views per student and the test classes had an average of 141 views per student, an increase of 15 views per student. 
+Comparing the views per student of the test classes and the regular classes, the test classes had more views per student. The regular classes had an average of 127 views per student and the test classes had an average of 141 views per student, an increase of 14 views per student. 
 
 While we do not have enough data here to confirm that the increase was the result of the new plug-ins rather than normal class variation, having an increase in Moodle activity in the test classes is good news for the effectiveness of the plug-ins.
 
