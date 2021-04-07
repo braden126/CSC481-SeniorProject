@@ -3,16 +3,17 @@ title: "Moodle Log Analysis"
 author: "Braden Baker"
 date: "4/6/2021"
 output:
-  pdf_document: default
-  word_document: default
   html_document: default
+  word_document: default
+  pdf_document: default
 ---
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+## Setup and Packages 
 
-```{r, message=FALSE, warning=FALSE, echo=FALSE}
+```{r, message=FALSE, warning=FALSE}
 library(tidyverse)
 library(lubridate)
 library(chron)
@@ -188,7 +189,7 @@ This research was done with 13 total classes, 5 classes from the Fall 2020 semes
 
 ## How Long Does it Take for Students to View Their Feedback?
 
-```{r, message=FALSE, warning=FALSE, echo=FALSE}
+```{r, message=FALSE, warning=FALSE}
 
 #data setup function
 q1fun <- function(dataframe) {
@@ -282,15 +283,15 @@ Most students viewed their feedback within a couple days but almost every class 
 
 *Note: This data does not include feedback that was never checked.*
 
-```{r, message=FALSE, warning=FALSE, echo=FALSE}
+```{r, message=FALSE, warning=FALSE}
+
+#find time diff
 q1datac <- q1data %>%
   mutate(timetoviewfb = difftime(Time.x, Time.y, units = "hours")) %>%
   filter(timetoviewfb < 0) %>% #removes a few data anomalies
   mutate(timetoviewfb = timetoviewfb * -1)
 
-#the purpose of this graph is to show how big the outliers are - I really dont need the box plot to show that
 ggplot(q1datac, aes(x=class.x, y=timetoviewfb)) + 
-#  geom_boxplot(alpha=0) + 
   geom_jitter(alpha=0.3, width = 0.2, color = "#2438f0") +
   scale_y_continuous(breaks = pretty_breaks(n = 8)) +
   theme_clean() +
@@ -304,7 +305,7 @@ ggplot(q1datac, aes(x=class.x, y=timetoviewfb)) +
 
 Despite the outliers, 80% of student feedback was viewed within about 50 hours from the time their feedback was posted.
 
-```{r, message=FALSE, warning=FALSE, echo=FALSE}
+```{r, message=FALSE, warning=FALSE}
 
 q1quantile <- quantile(as.numeric(q1datac$timetoviewfb), .8)
 
@@ -325,7 +326,7 @@ When including all classes, the median time to view feedback was 17.6 hours and 
 
 For most classes, the median time to view feedback was at or under 20 hours. This includes many of the classes with the largest sample sizes suggesting that the median time to view feedback is a better representation of how long it takes for students to view feedback than the mean.
 
-```{r, message=FALSE, warning=FALSE, echo=FALSE}
+```{r, message=FALSE, warning=FALSE}
 
 #gather averages
 q1datasum <- q1data %>%
@@ -353,7 +354,7 @@ ggplot(q1datasum, aes(x=class.x, y = med, fill = SampleSize)) +
 
 ## Which Moodle Resources get the Most and Least Number of Interactions?
 
-```{r, message=FALSE, warning=FALSE, echo=FALSE}
+```{r, message=FALSE, warning=FALSE}
 
 # set up function
 q2fun <- function(dataframe) {
@@ -444,7 +445,7 @@ The assignment module type received the most views as expected. The next highest
 The viewership of URL is surprising since it had a large number of modules added but a low number of views. The other module types having low total viewership is expected given that there was less of those module types posted.
 
 
-```{r, message=FALSE, warning=FALSE, echo=FALSE}
+```{r, message=FALSE, warning=FALSE}
 
 #gather totals
 q2datasumtotals <- q2data %>%
@@ -474,7 +475,7 @@ Outside of glossary and choice modules, assignment and quiz modules received the
 
 Forums also had an amount of views per module posted similar to quizzes suggesting that when forums are used, students are willing to interact with them as much as they do with important module types like quizzes.
 
-```{r, message=FALSE, warning=FALSE, echo=FALSE}
+```{r, message=FALSE, warning=FALSE}
 
 ggplot(q2datasumtotals, aes(x=Moduletype, y=ViewsPerModule, fill=TotalModulesAdded)) +
   geom_col(position = "dodge") +
@@ -494,7 +495,7 @@ Students viewed most modules on average 1-2 times with the exception of assignme
 File and URL module types were both viewed on average about 1 time per student. Most lecture materials are posted as those modules types so I would have expected them to have more viewership. Two possible reasons to explain this are that students could be returning to downloaded copies of files which would eliminate the need to view the module again. Similarly they could be going directly to a URL instead of clicking on the module. The other possible reason could be that students are leaving files and URLs open until they are done working with them.
 
 *How to Read - The assignment module received an average of 103.5 views on each module posted, each student viewed an assignment module on average 6.7 times, and each class had an average of 9.8 assignment modules added*
-```{r, message=FALSE, warning=FALSE, echo=FALSE}
+```{r, message=FALSE, warning=FALSE}
 
 #gather sums
 q2datasum <- q2data %>%
@@ -540,7 +541,7 @@ select(q2datasum, -AVGTotalModuleviews)
 
 ## How Often are Students Viewing Recorded Lectures?
 
-```{r, message=FALSE, warning=FALSE, echo=FALSE}
+```{r, message=FALSE, warning=FALSE}
 
 #clean data names and factors dates
 q31 <- class4 %>%
@@ -571,7 +572,7 @@ ggplot(q31, aes(x=Date, y=Views)) +
 
 Most students viewed a recorded lecture within about 5 days of a recording being posted. However another decently sized group viewed recorded lectures 13+ days after the recording was posted.
 
-```{r, message=FALSE, warning=FALSE, echo=FALSE}
+```{r, message=FALSE, warning=FALSE}
 #how many days after post do students watch
 
 #gather module added dates
@@ -605,7 +606,7 @@ ggplot(q32, aes(x=timetoview)) +
 Examining further, it does seem that there may be two groups of views for recorded lectures. The first group views recordings a few days after the recording was posted, likely for homework, missing the class, or just going over it again. A second group views the recorded lecture days after they were posted, likely for test preparation. This trend is strongest in November. Most November lectures received more views 5+ days after the lecture was posted than other months suggesting that the views may have been for preparing for end of semester exams or finals.
 
 
-```{r, message=FALSE, warning=FALSE, echo=FALSE}
+```{r, message=FALSE, warning=FALSE}
 
 #clean names and date for ggplot
 q32 <- q32 %>%
@@ -625,7 +626,7 @@ ggplot(q32, aes(x=reorder(Eventcontext, Time.y), y =timetoview)) +
 
 ## How Long Does it Take For Students to Submit an Assignment After First Viewing the Assignment?
 
-```{r, message=FALSE, warning=FALSE, echo=FALSE}
+```{r, message=FALSE, warning=FALSE}
 
 #data setup function
 q4fun <- function(dataframe) {
@@ -709,7 +710,7 @@ The two highest values of turn in times were 1 and 2 days suggesting that studen
 
 *Note - I removed any assignment that was submitted within 1.5 hours from the first view to remove any in-class assignments or extremely short assignments from the dataset*
 
-```{r, message=FALSE, warning=FALSE, echo=FALSE}
+```{r, message=FALSE, warning=FALSE}
 
 #removes short assignments
 q41 <- q4data %>%
@@ -736,7 +737,7 @@ Looking at the average time from first view to submission for each student by cl
 
 The diverse levels of submission times between classes suggest that class structure may have a strong impact on how long students spend between viewing an assignment and submitting it but there is not quite enough data here to confirm that assumption.
 
-```{r, message=FALSE, warning=FALSE, echo=FALSE}
+```{r, message=FALSE, warning=FALSE}
 
 #gathers average for each class/student
 q42 <- q4data %>%
@@ -762,7 +763,7 @@ Looking at the average time from first view to submission by assignment rather t
 
 The logs give no clear answer to why the groupings differ because they do not capture assignment due dates. One possible reason could be that when assignments have due dates shortly after they are posted, students are forced to complete the assignment not long after they view it, leading to tighter groups. Assignments posted with longer due dates means that students are not forced to complete the assignment shortly after viewing, leading to more flexibility in when they can complete the assignment and more spread out groupings.
 
-```{r, message=FALSE, warning=FALSE, echo=FALSE}
+```{r, message=FALSE, warning=FALSE}
 
 
 #removes short assignments
@@ -795,7 +796,7 @@ ggplot() +
 
 ## How Are Students Interacting With Video Content Posted on Moodle?
 
-```{r, message=FALSE, warning=FALSE, echo=FALSE}
+```{r, message=FALSE, warning=FALSE}
 
 #data setup
 #filters to data containing video keywords
@@ -831,7 +832,7 @@ Almost all video content was viewed by a proportionate amount of students in com
 
 *Note - There may be missing data here. The logs do not capture what file type a module is, to gather this data I used any module with "Video" or "Recording" in the title which means that videos without clear naming were not used in this visualization.* 
 
-```{r, message=FALSE, warning=FALSE, echo=FALSE}
+```{r, message=FALSE, warning=FALSE}
 
 #gather sums
 q52 <- q51 %>%
@@ -852,7 +853,7 @@ ggplot(q52, aes(x = 1:nrow(q52), y = count, color = numStudents)) +
 
 ## When Are Students Using Moodle?
 
-```{r, message=FALSE, warning=FALSE, echo=FALSE}
+```{r, message=FALSE, warning=FALSE}
 
 #heat map with views
 activityheatmap <- alldata %>%
@@ -881,7 +882,7 @@ Sunday is as expected, the day with the most activity. Starting at about 9:00, S
 Another interesting point is that there is a large number of students that used Moodle late Saturday night. 
 
 
-```{r, message=FALSE, warning=FALSE, echo=FALSE}
+```{r, message=FALSE, warning=FALSE}
 
 ggplot(activityheatmap, aes(roundedtime, weekday)) + geom_tile(aes(fill = count),colour = "white", na.rm = TRUE) +
   scale_fill_gradient(low = "#d8e1cf", high = "#438484", na.value = "grey50") +  
@@ -900,7 +901,7 @@ Like in the graph above, the results from 8:00 - 15:00 are likely not indicative
 
 The trend of extra activity on Sunday and Wednesday nights continues here. Along with a large number of submissions late Saturday night (Sunday 12:00 AM - 01:00 AM).
 
-```{r, message=FALSE, warning=FALSE, echo=FALSE}
+```{r, message=FALSE, warning=FALSE}
 
 ggplot(activityheatmap2, aes(roundedtime, weekday)) + geom_tile(aes(fill = count),colour = "white", na.rm = TRUE) +
   scale_fill_gradient(low = "#d8e1cf", high = "#438484", na.value = "grey50") +  
@@ -914,7 +915,7 @@ ggplot(activityheatmap2, aes(roundedtime, weekday)) + geom_tile(aes(fill = count
 ```
 
 
-```{r, message=FALSE, warning=FALSE, echo=FALSE}
+```{r, message=FALSE, warning=FALSE}
 
 #only views and submissions
 timedata <- alldata %>%
@@ -926,7 +927,7 @@ Viewing interactions by only time also shows high usage during the class times f
 
 After 14:00, activity steadily drops until 20:00 suggesting further that this is when a large amount of students start going on Moodle again after class hours. There is also a larger number of assignment submissions starting at 20:00 until 01:00 the next day.
 
-```{r, message=FALSE, warning=FALSE, echo=FALSE}
+```{r, message=FALSE, warning=FALSE}
 
 ggplot(timedata, aes(x=roundedtime, fill = Eventname)) + 
   stat_count(position = "dodge") +
@@ -943,7 +944,7 @@ ggplot(timedata, aes(x=roundedtime, fill = Eventname)) +
 
 Similarly looking at totals by day of the week, the activity of a week peaks on Tuesday and then falls each day until Sunday. Sunday also has by far the most assignment submissions, further reinforcing that students do a large amount of work on Sundays.
 
-```{r, message=FALSE, warning=FALSE, echo=FALSE}
+```{r, message=FALSE, warning=FALSE}
 
 ggplot(timedata, aes(x=weekday, fill = Eventname)) + 
   stat_count(position = "dodge") +
@@ -958,7 +959,7 @@ ggplot(timedata, aes(x=weekday, fill = Eventname)) +
 
 ## How Long Are Students Using Moodle?
 
-```{r, message=FALSE, warning=FALSE, echo=FALSE}
+```{r, message=FALSE, warning=FALSE}
 
 #gathers only users that have submitted an assignment or taken a quiz
 #this is used to filter out most of the moodle administrative userids that do not reflect students
@@ -1048,7 +1049,7 @@ Most Students are not on a Moodle course very long. The average session length w
 
 *Note - A Moodle session's length is defined as the time from the first action taken in a session to the last action taken. If there is more than an hour between a student's last two actions, the current session ends and a new session begins. An hour was chosen because students may be spending a long time viewing a single resource in a module, creating no new log files despite them being on Moodle for an extended period of time.*
 
-```{r, message=FALSE, warning=FALSE, echo=FALSE}
+```{r, message=FALSE, warning=FALSE}
 
 #gather sums
 q62 <- q61 %>%
@@ -1081,7 +1082,7 @@ ggplot(q62, aes(x = as.numeric(sessionlength))) +
 
 Here, sessions less than 10 minutes are removed to get a closer look at the medium to long length sessions. The highest two amounts were 20 and 25 minutes sessions. After reaching 60 minute sessions, the number of sessions longer than 60 minutes decreases rapidly. This suggests that when students are doing work on Moodle, most will either switch to a working on a different course or stop using Moodle after about 60 minutes during long sessions. 
 
-```{r, message=FALSE, warning=FALSE, echo=FALSE}
+```{r, message=FALSE, warning=FALSE}
 
 # removes quick hop ons that are less than 10 minutes
 q63 <- q62 %>%
@@ -1104,7 +1105,7 @@ On Monday, Tuesday, and Wednesday there is a similar amount of long Moodle sessi
 
 With the short sessions, one interesting point is that there is a large amount of late night short sessions, likely checking due dates or assignments due in next class.
 
-```{r, message=FALSE, warning=FALSE, echo=FALSE}
+```{r, message=FALSE, warning=FALSE}
 
 #under 10 minute sessions
 q64 <- q62 %>%
@@ -1154,7 +1155,7 @@ ggplot(q64heatmap, aes(roundedstart, weekday)) + geom_tile(aes(fill = count),col
 
 Looking at the average by class, there is quite a difference between classes. The high differences suggest that class structure has an impact on the length of Moodle sessions as well. I would expect classes that commonly have quizzes on Moodle or have a high number of weekly modules have longer Moodle sessions on average due to those activities keeping students on Moodle for longer.
 
-```{r, message=FALSE, warning=FALSE, echo=FALSE}
+```{r, message=FALSE, warning=FALSE}
 
 # most of this data is already shown in the other visuals - probably not needed, keeping her for future use
 q66 <- q61 %>%
@@ -1187,7 +1188,7 @@ ggplot(q67, aes(x = reorder(class, avg), y = avg, fill = class)) +
 
 Students visited their Moodle course on average 1.8 times a day. Since the logs only capture student activity for one course, we can assume students are checking each of the classes they need to 1.8 times a day.
 
-```{r, message=FALSE, warning=FALSE, echo=FALSE}
+```{r, message=FALSE, warning=FALSE}
 
 ##gathers sessions per day
 q69 <- q61 %>%
@@ -1213,7 +1214,7 @@ ggplot(q69, aes(x=as.factor(sessions))) +
 
 ## Checklist Module Analysis
 
-```{r, message=FALSE, warning=FALSE, echo=FALSE}
+```{r, message=FALSE, warning=FALSE}
 
 #filters to only checklists and removes some unneeded events and removes instructor from the data
 checklist <- class8 %>%
@@ -1251,7 +1252,7 @@ Overall, the new checklist plug-in modules received a good amount of usage in bo
 
 Both classes were very "up and down" in their usage but I assume this is just due to fluctuations in workload each week leading to less checks needing to be made for the weekly list.
 
-```{r, message=FALSE, warning=FALSE, echo=FALSE}
+```{r, message=FALSE, warning=FALSE}
 
 ggplot(checklist, aes(x=week, y = count, color = Eventname)) + 
   geom_line(size = 2) +
@@ -1276,7 +1277,7 @@ ggplot(checklist2, aes(x=week, y = count, color = Eventname)) +
 
 Although there were students that almost completely ignored the checklists, most used the checklists. The average number of views + checks for a student was almost 30 and a decent number of students used the checklist extensively.
 
-```{r, message=FALSE, warning=FALSE, echo=FALSE}
+```{r, message=FALSE, warning=FALSE}
 
 ggplot(checklist3, aes(x=reorder(userid, count), y = count)) + 
   geom_point(color = "red", size = 4) + 
@@ -1296,7 +1297,7 @@ Looking at the weekly view, most students had around 5 views + checks each week.
 
 We do see that the usage of the checklists trends down slightly over the course of the semester however it is not by a significant amount.
 
-```{r, message=FALSE, warning=FALSE, echo=FALSE}
+```{r, message=FALSE, warning=FALSE}
 
 #gathers checklist data again
 checklist4 <- bind_rows(class9, class8) %>%
@@ -1327,7 +1328,7 @@ Unfortunately there is not enough data to fully investigate why there are so man
 
 *Note - Graphs with no line are students that used the checklist only 0 or 1 times.*
 
-```{r, message=FALSE, warning=FALSE, echo=FALSE}
+```{r, message=FALSE, warning=FALSE}
 
 #facet for each students activity
 #blank graphs only used the checklist once
@@ -1341,7 +1342,7 @@ ggplot(checklist4, aes(x=week, y=count)) +
 
 ## Perusall Module Analysis 
 
-```{r, message=FALSE, warning=FALSE, echo=FALSE}
+```{r, message=FALSE, warning=FALSE}
 
 #gathers only perusall data and and views
 p1 <- class8 %>%
@@ -1363,7 +1364,7 @@ p <- bind_rows(p1, p2)
 
 There were two classes that used Perusall in this dataset. The first class had a more balanced amount of activity over the weeks while the second class had a much greater amount of activity in the second half of this dataset. 
 
-```{r, message=FALSE, warning=FALSE, echo=FALSE}
+```{r, message=FALSE, warning=FALSE}
 
 #sum of views for each week
 p3 <-  p %>% 
@@ -1385,7 +1386,7 @@ ggplot(p3, aes(x = week, y = count, fill = class)) +
 
 The views per student of each Perusall module was fairly spread out. Almost every Perusall module had at least 1 view per student and the average views per student was 2.3.
 
-```{r, message=FALSE, warning=FALSE, echo=FALSE}
+```{r, message=FALSE, warning=FALSE}
 
 ## views per student for each module
 p4 <- p %>% 
@@ -1411,7 +1412,7 @@ ggplot(p4, aes(x = reorder(names, Viewsperstudent), y = Viewsperstudent, fill = 
 
 Perusall modules were viewed by each student an average of 2.9 times. This is positive as noted previously, students viewed URL modules 0.7 times on average and file modules 1.2 times on average. The Perusall module outperformed both of those module types significantly. 
 
-```{r, message=FALSE, warning=FALSE, echo=FALSE}
+```{r, message=FALSE, warning=FALSE}
 
 #mean views per student
 p5 <- p %>%   
@@ -1439,7 +1440,7 @@ ggplot(p5, aes(x = reorder(names, AVGStudentVisits), y = AVGStudentVisits, fill 
 
 ## Overall Comparisons Between Test Classes and Regular Classes
 
-```{r, message=FALSE, warning=FALSE, echo=FALSE}
+```{r, message=FALSE, warning=FALSE}
 #course views per student
 compare <- alldata %>%
   filter(Eventname == "Course viewed") %>%
@@ -1461,7 +1462,7 @@ Comparing the views per student of the test classes and the regular classes, the
 
 While we do not have enough data here to confirm that the increase was the result of the new plug-ins rather than normal class variation, having an increase in Moodle activity in the test classes is good news for the effectiveness of the plug-ins.
 
-```{r, message=FALSE, warning=FALSE, echo=FALSE}
+```{r, message=FALSE, warning=FALSE}
 
 ggplot(compare, aes(x=reorder(class, countstudentratio), y = countstudentratio, fill = as.factor(testgroup))) + 
   geom_col() +
