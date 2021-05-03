@@ -328,13 +328,13 @@ For most classes, the median time to view feedback was at or under 20 hours. Thi
 
 ```{r, message=FALSE, warning=FALSE}
 
-#gather averages
+#gather class stats
 q1datasum <- q1data %>%
   group_by(class.x) %>%
   mutate(timetoviewfb = -1 * (difftime(Time.x, Time.y, units = "hours"))) %>%
   summarise(med = median(timetoviewfb), avg = mean(timetoviewfb), SampleSize = n())
 
-#gather medians
+#gather all classes stats
 q1dataAvgMed <- q1data %>%
   ungroup() %>%
   mutate(timetoviewfb = -1 * (difftime(Time.x, Time.y, units = "hours"))) %>%
@@ -1156,15 +1156,6 @@ ggplot(q64heatmap, aes(roundedstart, weekday)) + geom_tile(aes(fill = count),col
 Looking at the average by class, there is quite a difference between classes. The high differences suggest that class structure has an impact on the length of Moodle sessions as well. I would expect classes that commonly have quizzes on Moodle or have a high number of weekly modules have longer Moodle sessions on average due to those activities keeping students on Moodle for longer.
 
 ```{r, message=FALSE, warning=FALSE}
-
-# most of this data is already shown in the other visuals - probably not needed, keeping her for future use
-q66 <- q61 %>%
-  group_by(userid, sessionid) %>%
-  summarise(start = max(Time), end = min(Time)) %>%
-  mutate(sessionlength = difftime(start, end, units = "mins")) %>%
-  filter(sessionlength < 500) %>% #removes a few extremely long sessions created by moodle admin function
-  group_by(userid) %>%
-  summarise(avg = mean(sessionlength))
 
 ## average per class
 q67 <- q61 %>%
