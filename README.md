@@ -23,14 +23,14 @@
 
 <p>The Powerpoint presentation of this project is located in the files of this repository.</p>
 
-<p>This is the RPubs link for this project which contains the knitted version of the main R Markdown file of the project code, moodleSpringFinalWCode.Rmd.</p>
-<p>https://rpubs.com/braden1/751094</p>
+<p>This is the RPubs link for this project which contains the knitted version of the main R Markdown file of the project code, moodleSpringFinalWCode.Rmd.<br>
+https://rpubs.com/braden1/751094</p>
 
-<p>The HTML knitted version of the main R Markdown file is also hosted on the Github Pages of this repository.</p>
-<p>https://braden126.github.io/CSC481-SeniorProject/</p>
+<p>The HTML knitted version of the main R Markdown file is also hosted on the Github Pages of this repository.<br>
+https://braden126.github.io/CSC481-SeniorProject/</p>
 
-<p>This link is for the video presentation of the project and a demonstration of the code used for analysis and visualization.</p>
-<p>https://www.youtube.com/watch?v=YKMLm05_LEk</p>
+<p>This link is for the video presentation of the project and a demonstration of the code used for analysis and visualization.<br>
+https://www.youtube.com/watch?v=YKMLm05_LEk</p>
 
 
 
