@@ -18,3 +18,17 @@
 <p>The analysis of this project will be done entirely with R. The output of Moodle logs comes in the form of a CSV file which makes it easy to be imported into RStudio. Once the logs have been imported, a significant amount of data wrangling is needed to use the data. The Tidyverse package will provide most of the tools needed for the data cleaning. The data contains a few string multi-valued attributes and redundant log files. For example, the process of turning in an assignment generates four log files for the same action. While useful for error handling, the redundant logs could create misleading data if left alone. All types of redundant files will need to be resolved before analysis is complete to ensure that all data used to examine the usage of a Moodle feature is recorded accurately. To extract useful data from the string multi-valued attributes, regular expressions using the Rebus R package will be used. Finally, the date and time attribute of the log files will be expanded using functions from the Lubridate package. This will make it easy to track the usage of Moodle throughout the duration of the course and during each day. </p>
 
 <p>Once the data is cleaned it will be prepared for visualizations using the Ggplot2 package. These visualizations with commentary will be the main method of presenting the findings of the analysis. They will use the cleaned Moodle logs to answer the questions detailed in the specification section. While it is undetermined at the moment if Saint Martin’s ITS will be able to get access to the logs regularly, if they are able to, the R scripts used for the analysis can be expanded for regular Moodle courses. Should this happen, a separate version of the R script used to create the report for the plugins tested in the Spring will be created to give a more general analysis of a Moodle course and provide visualizations. This result would likely be in the form of an RShiny Dashboard that would allow professors to view how students are interacting with their Moodle course at any time during the semester.</p>
+
+<p><strong> Presentation </strong></p>
+
+The Powerpoint presentation of this project is located in the files of this repository.
+
+This is the RPubs link for this project which contains the knitted version of the main R Markdown file of the project code, moodleSpringFinalWCode.Rmd.
+https://rpubs.com/braden1/751094
+
+This link is for the video presentation of the project and a demonstration of the code used for analysis and visualization.
+https://www.youtube.com/watch?v=YKMLm05_LEk
+
+
+
+
